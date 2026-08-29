@@ -4,12 +4,14 @@
 
 > 数据范围：仅支持 A 股市场。
 
-![License](https://img.shields.io/badge/License-MIT-green) ![Python](https://img.shields.io/badge/Python-3.11-blue) ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-blue) ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-green) ![React](https://img.shields.io/badge/React-19-61dafb) ![LangGraph](https://img.shields.io/badge/LangGraph-%E2%9C%93-orange)
+![License](https://img.shields.io/badge/License-MIT-green) ![Python](https://img.shields.io/badge/Python-3.11-blue) ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-blue) ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-green) ![React](https://img.shields.io/badge/React-19-61dafb)
 
 ---
 
 ## 目录
 
+- [参赛荣誉](#参赛荣誉)
+- [界面预览](#界面预览)
 - [功能特性](#功能特性)
 - [架构总览](#架构总览)
 - [核心设计](#核心设计)
@@ -24,6 +26,30 @@
 - [License](#license)
 
 ---
+
+## 参赛荣誉
+
+Investment Compass 投资罗盘参赛 **2026 飞书 AI 先锋赛 · 金仕达命题**（命题：一套面向中小 B + 大 C 的智能化金融投研与财富助手），成功**入围并获奖**。
+
+> 奖项名称 / 获奖证书 / 比赛链接（待补充，由维护者更新）
+
+## 界面预览
+
+> 使用效果截图由维护者补充，建议存放至 `docs/images/` 后替换下方占位。可包含：
+>
+> - 工作台主界面
+> - 两阶段分析对话（估值 → HITL 确认 → 技术分析）
+> - 决策卡与引用卡片
+> - 六维风格画像雷达
+
+```
+docs/images/            # 截图与架构图统一存放目录（由维护者添加）
+├── screenshot-main.png        # 工作台主界面
+├── screenshot-analysis.png    # 两阶段分析对话
+├── screenshot-decision.png    # 决策卡 / 引用卡片
+├── screenshot-radar.png       # 六维风格画像雷达
+└── architecture-7layers.png   # 7 层架构图
+```
 
 ## 功能特性
 
@@ -75,53 +101,9 @@
 | ⑥ 持久化层 | MySQL（决策+会话）/ Redis（缓存）/ Chroma（经验向量） | 事实层、偏好层、经验层三级持久化 |
 | ⑦ 通知同步层 | 飞书群 Webhook 推送 + 配置同步 | 决策卡主动触达，工作台一次配置双端生效 |
 
-```mermaid
-flowchart TB
-    subgraph FE["前端工作台 Frontend (React + Vite :5173)"]
-        UI["对话 / K线 / 行情看板 / 自选股 / 系统设置 / 画像雷达"]
-    end
-
-    subgraph JV["数据服务 Java Backend (Spring Boot :8879)"]
-        MC["行情 / K线 / 看板 / 自选股"]
-        WS["WebSocket 实时行情推送"]
-    end
-
-    subgraph PY["决策引擎 Python Service (FastAPI :8002)"]
-        ORCH["Agent 编排 (LangGraph)"]
-        VA["估值评估 Agent"]
-        TA["技术分析 Agent"]
-        AD["RAG 资讯问答 Agent"]
-        WA["自选股画像 Agent"]
-        LLM["LLM 推理 (DeepSeek)"]
-        VEC["经验库 (ChromaDB)"]
-        SRC["数据源 akshare / 东方财富 / Tushare"]
-        NT["通知 飞书 / PushPlus"]
-    end
-
-    DB[("MySQL 主存储")]
-    RD[("Redis 缓存")]
-
-    UI -->|"/api/chat · settings · fetch · news"| PY
-    UI -->|"/api/stock · market · watchlist · monitor"| JV
-    JV --> WS --> UI
-
-    ORCH --> VA
-    ORCH --> TA
-    ORCH --> AD
-    ORCH --> WA
-    VA --> LLM
-    TA --> LLM
-    AD --> LLM
-    LLM --> VEC
-    ORCH --> SRC
-    ORCH --> NT
-
-    PY --> DB
-    PY --> RD
-    JV --> DB
-```
-
-> 图源文件见 [`docs/architecture-overview.mmd`](docs/architecture-overview.mmd)
+> 架构图（待补充）：建议放置 7 层架构图与核心数据流图。图片存放至 `docs/images/` 后替换下方引用，例如：
+>
+> `![7 层架构图](docs/images/architecture-7layers.png)`
 
 **一次完整分析请求的调用链**
 
@@ -248,7 +230,7 @@ Investment-Compass/
 ├── frontend/          # React 工作台
 ├── sql/               # Flyway 风格数据库迁移脚本
 ├── scripts/           # 初始化 / 回测 / e2e 测试脚本
-└── docs/              # 架构与 API 文档
+└── docs/              # 架构与 API 文档（图示见 docs/images/）
 ```
 
 ## 合规与安全
