@@ -1,0 +1,43 @@
+```mermaid
+flowchart TB
+    subgraph FE["前端工作台 Frontend (React + Vite :5173)"]
+        UI["对话 / K线 / 行情看板 / 自选股 / 系统设置"]
+    end
+
+    subgraph JV["数据服务 Java Backend (Spring Boot :8879)"]
+        MC["行情 / K线 / 看板 / 自选股"]
+        WS["WebSocket 实时行情推送"]
+    end
+
+    subgraph PY["决策引擎 Python Service (FastAPI :8002)"]
+        ORCH["Agent 编排 (LangGraph)"]
+        VA["估值评估 Agent"]
+        TA["技术分析 Agent"]
+        AD["RAG 资讯问答 Agent"]
+        LLM["LLM 推理 (DeepSeek)"]
+        VEC["经验库 (ChromaDB)"]
+        SRC["数据源 akshare / 东方财富 / Tushare"]
+        NT["通知 飞书 / PushPlus"]
+    end
+
+    DB[("MySQL 主存储")]
+    RD[("Redis 缓存")]
+
+    UI -->|"/api/chat · settings · fetch · news"| PY
+    UI -->|"/api/stock · market · watchlist · monitor"| JV
+    JV --> WS --> UI
+
+    ORCH --> VA
+    ORCH --> TA
+    ORCH --> AD
+    VA --> LLM
+    TA --> LLM
+    AD --> LLM
+    LLM --> VEC
+    ORCH --> SRC
+    ORCH --> NT
+
+    PY --> DB
+    PY --> RD
+    JV --> DB
+```
