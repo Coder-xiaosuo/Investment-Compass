@@ -1,0 +1,4 @@
+interface:
+  display_name: "A股支撑阻力"
+  short_description: "A股整数关口/筹码密集区/前高前低支撑阻力规则"
+  default_prompt: "加载 A股支撑阻力 技能包，参考 A股支撑阻力.txt 中的价格行为交易知识进行当前分析。A股整数关口/筹码密集区/前高前低支撑阻力规则"

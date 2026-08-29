@@ -1,0 +1,4 @@
+interface:
+  display_name: "止损止盈与仓位管理"
+  short_description: "止损设置、止盈目标与仓位管理规则（PA Agent仅参考不输出仓位）"
+  default_prompt: "加载 止损止盈与仓位管理 技能包，参考 文件17-止损和止盈与仓位管理.txt 中的价格行为交易知识进行当前分析。止损设置、止盈目标与仓位管理规则（PA Agent仅参考不输出仓位）"

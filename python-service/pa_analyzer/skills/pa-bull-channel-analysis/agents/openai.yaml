@@ -1,0 +1,4 @@
+interface:
+  display_name: "上涨通道分析"
+  short_description: "上涨通道的诊断识别、结构特征与通道类型判断"
+  default_prompt: "加载 上涨通道分析 技能包，参考 上涨通道分析识别.txt 中的价格行为交易知识进行当前分析。上涨通道的诊断识别、结构特征与通道类型判断"

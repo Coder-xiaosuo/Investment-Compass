@@ -1,0 +1,326 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 940" width="100%" height="auto" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif">
+  <defs>
+    <marker id="ms-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M1 1 L7 4 L1 7 Z" fill="#52525B"/>
+    </marker>
+    <marker id="ms-arrow-read" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M1 1 L7 4 L1 7 Z" fill="#22A5F7"/>
+    </marker>
+    <marker id="ms-arrow-write" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M1 1 L7 4 L1 7 Z" fill="#1DC981"/>
+    </marker>
+    <marker id="ms-arrow-exp" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M1 1 L7 4 L1 7 Z" fill="#F9A825"/>
+    </marker>
+    <marker id="ms-arrow-ctx" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M1 1 L7 4 L1 7 Z" fill="#4B3FE3"/>
+    </marker>
+  </defs>
+
+  <style>
+    .layer-title { font-size: 14px; font-weight: 700; fill: #171717; }
+    .layer-sub { font-size: 11px; fill: #52525B; }
+    .node-title { font-size: 12px; font-weight: 600; fill: #171717; }
+    .node-sub { font-size: 10px; fill: #52525B; }
+    .node-detail { font-size: 9px; fill: #71717A; }
+    .conn-label { font-size: 9px; fill: #52525B; }
+    .badge { font-size: 9px; font-weight: 600; }
+    .panel-title { font-size: 13px; font-weight: 700; }
+    .flow-label { font-size: 10px; font-weight: 600; }
+  </style>
+
+  <rect x="0" y="0" width="960" height="940" fill="#F7F7F8" rx="12"/>
+
+  <!-- ========== Layer 1: 工作记忆 ========== -->
+  <rect x="20" y="16" width="920" height="184" rx="12" fill="#E3F2FD" stroke="#22A5F7" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.6"/>
+  <text x="40" y="42" class="layer-title" fill="#0D47A1">⚡ 工作记忆 (Working Memory)</text>
+  <text x="260" y="42" class="layer-sub">每次模型调用 · MemoryMiddleware 注入 + 推理 + usage 采集</text>
+
+  <!-- MemoryMiddleware -->
+  <g transform="translate(48,56)">
+    <rect x="0" y="0" width="196" height="92" rx="8" fill="#FFFFFF" stroke="#22A5F7" stroke-width="1.5"/>
+    <text x="10" y="20" class="node-title" fill="#0D47A1">MemoryMiddleware</text>
+    <text x="10" y="36" class="node-sub">注入 AGENTS.md</text>
+    <text x="10" y="50" class="node-sub">+ preferences.md</text>
+    <text x="10" y="64" class="node-detail">→ &lt;agent_memory&gt; 块</text>
+    <text x="10" y="78" class="node-detail">每次调用前注入 system prompt</text>
+    <rect x="10" y="82" width="80" height="6" rx="2" fill="#22A5F7" opacity="0.3"/>
+  </g>
+
+  <!-- System Prompt + Messages -->
+  <g transform="translate(268,56)">
+    <rect x="0" y="0" width="196" height="92" rx="8" fill="#FFFFFF" stroke="#22A5F7" stroke-width="1.2"/>
+    <text x="10" y="20" class="node-title">System Prompt</text>
+    <text x="10" y="36" class="node-sub">+ Messages</text>
+    <text x="10" y="50" class="node-detail">含 &lt;agent_memory&gt; 注入</text>
+    <text x="10" y="64" class="node-detail">+ 对话历史 (3轮窗口)</text>
+    <text x="10" y="78" class="node-detail">+ 工具结果 / 子Agent返回</text>
+  </g>
+
+  <!-- DeepSeek Model -->
+  <g transform="translate(488,56)">
+    <rect x="0" y="0" width="172" height="92" rx="8" fill="#FFFFFF" stroke="#22A5F7" stroke-width="1.2"/>
+    <text x="10" y="20" class="node-title">DeepSeek Model</text>
+    <text x="10" y="36" class="node-sub">thinking 模式</text>
+    <text x="10" y="50" class="node-detail">extra_body: thinking</text>
+    <text x="10" y="64" class="node-detail">reasoning_content 透传</text>
+    <text x="10" y="78" class="node-detail">含子Agent内部调用</text>
+  </g>
+
+  <!-- usage_metadata -->
+  <g transform="translate(688,56)">
+    <rect x="0" y="0" width="208" height="92" rx="8" fill="#FFFFFF" stroke="#4B3FE3" stroke-width="1.5"/>
+    <text x="10" y="20" class="node-title" fill="#4B3FE3">usage_metadata</text>
+    <text x="10" y="36" class="node-sub">input / output / total</text>
+    <text x="10" y="50" class="node-detail">从 astream updates 的 model</text>
+    <text x="10" y="64" class="node-detail">节点 AIMessage 采集</text>
+    <text x="10" y="78" class="node-detail">→ SSE usage 事件 (去重)</text>
+  </g>
+
+  <!-- L1 内部箭头 -->
+  <path d="M 244 102 L 268 102" stroke="#22A5F7" stroke-width="1.5" fill="none" marker-end="url(#ms-arrow-read)"/>
+  <path d="M 464 102 L 488 102" stroke="#22A5F7" stroke-width="1.5" fill="none" marker-end="url(#ms-arrow-read)"/>
+  <path d="M 660 102 L 688 102" stroke="#22A5F7" stroke-width="1.5" fill="none" marker-end="url(#ms-arrow-read)"/>
+
+  <!-- edit_file 标注 -->
+  <g transform="translate(48,156)">
+    <rect x="0" y="0" width="280" height="24" rx="6" fill="#1DC981" opacity="0.12"/>
+    <text x="8" y="16" class="flow-label" fill="#059669">✏️ Agent edit_file → 写入 preferences.md（价值分类判定）</text>
+  </g>
+
+  <!-- ========== Layer 2: 会话记忆 ========== -->
+  <rect x="20" y="216" width="920" height="224" rx="12" fill="#F3E5F5" stroke="#4B3FE3" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.6"/>
+  <text x="40" y="242" class="layer-title" fill="#4B3FE3">🔗 会话记忆 (Session Memory)</text>
+  <text x="260" y="242" class="layer-sub">每个会话线程 · thread_id ↔ langgraph 绑定 · MySQL 持久化 · HITL 恢复</text>
+
+  <!-- thread_service -->
+  <g transform="translate(48,256)">
+    <rect x="0" y="0" width="196" height="108" rx="8" fill="#FFFFFF" stroke="#4B3FE3" stroke-width="1.5"/>
+    <text x="10" y="20" class="node-title" fill="#4B3FE3">thread_service</text>
+    <text x="10" y="36" class="node-sub">get_or_create_thread</text>
+    <text x="10" y="50" class="node-detail">① conversation.thread_id</text>
+    <text x="10" y="62" class="node-detail">② agent_threads 最新历史</text>
+    <text x="10" y="74" class="node-detail">③ create_thread (uuid7)</text>
+    <text x="10" y="88" class="node-detail">get_resumable_thread</text>
+    <text x="10" y="100" class="badge" fill="#4B3FE3">_bind_thread 幂等</text>
+  </g>
+
+  <!-- MySQL Checkpointer -->
+  <g transform="translate(268,256)">
+    <rect x="0" y="0" width="196" height="108" rx="8" fill="#FFFFFF" stroke="#4B3FE3" stroke-width="1.5"/>
+    <text x="10" y="20" class="node-title">AIOMySQLSaver</text>
+    <text x="10" y="36" class="node-sub">MySQL Checkpointer</text>
+    <text x="10" y="50" class="node-detail">checkpoints 表</text>
+    <text x="10" y="62" class="node-detail">checkpoint_blobs 表</text>
+    <text x="10" y="74" class="node-detail">checkpoint_writes 表</text>
+    <text x="10" y="88" class="node-detail">HITL 中断状态持久化</text>
+    <text x="10" y="100" class="badge" fill="#4B3FE3">MySQL 8.0.34+ 兼容</text>
+  </g>
+
+  <!-- SummarizationMiddleware -->
+  <g transform="translate(488,256)">
+    <rect x="0" y="0" width="172" height="108" rx="8" fill="#FFFFFF" stroke="#4B3FE3" stroke-width="1.5"/>
+    <text x="10" y="20" class="node-title">Summarization</text>
+    <text x="10" y="34" class="node-title">Middleware</text>
+    <text x="10" y="50" class="node-sub">对话历史压缩</text>
+    <text x="10" y="64" class="node-detail">trigger: 54000 tokens</text>
+    <text x="10" y="76" class="node-detail">keep: 6000 tokens</text>
+    <text x="10" y="88" class="node-detail">旧消息 → LLM 摘要</text>
+    <text x="10" y="100" class="badge" fill="#F57C00">归档 → filesystem</text>
+  </g>
+
+  <!-- context_tokens -->
+  <g transform="translate(688,256)">
+    <rect x="0" y="0" width="208" height="108" rx="8" fill="#FFFFFF" stroke="#4B3FE3" stroke-width="1.5"/>
+    <text x="10" y="20" class="node-title">context_tokens</text>
+    <text x="10" y="36" class="node-sub">conversation 表字段</text>
+    <text x="10" y="50" class="node-detail">真实 input_tokens 落库</text>
+    <text x="10" y="62" class="node-detail">前端展示用量</text>
+    <text x="10" y="74" class="node-detail">分母对齐: 54000 阈值</text>
+    <text x="10" y="88" class="node-detail">_estimate_tokens 兜底</text>
+    <text x="10" y="100" class="badge" fill="#4B3FE3">SSE usage 透传</text>
+  </g>
+
+  <!-- HITL 状态流转 -->
+  <g transform="translate(48,380)">
+    <rect x="0" y="0" width="848" height="24" rx="6" fill="#4B3FE3" opacity="0.08"/>
+    <text x="8" y="16" class="flow-label" fill="#4B3FE3">HITL: 中断 → mark_interrupted(INTERRUPTED) → 用户 approve/reject/respond → get_resumable_thread → Command(resume) → mark_done(DONE)</text>
+  </g>
+
+  <!-- 归档标注 -->
+  <g transform="translate(48,408)">
+    <text x="0" y="14" class="conn-label">📦 归档: 压缩历史 → data/workspace/conversation_history/（落盘持久·只读）· 大结果卸载 → /large_tool_results/</text>
+  </g>
+
+  <!-- ========== Layer 3: 长期记忆 ========== -->
+  <rect x="20" y="456" width="920" height="444" rx="12" fill="#E8F5E9" stroke="#1DC981" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.6"/>
+  <text x="40" y="482" class="layer-title" fill="#059669">💾 长期记忆 (Long-term Memory)</text>
+  <text x="260" y="482" class="layer-sub">跨会话持久 · 双轨制：文件记忆（Markdown）+ 经验记忆（ChromaDB 向量）</text>
+
+  <!-- 左面板：文件记忆 -->
+  <rect x="40" y="496" width="432" height="384" rx="10" fill="#FFFFFF" stroke="#1DC981" stroke-width="1" stroke-dasharray="3 2"/>
+  <text x="56" y="520" class="panel-title" fill="#059669">📄 文件记忆（Markdown）</text>
+
+  <!-- AGENTS.md -->
+  <g transform="translate(56,532)">
+    <rect x="0" y="0" width="188" height="72" rx="8" fill="#F0FDF4" stroke="#1DC981" stroke-width="1.2"/>
+    <text x="10" y="18" class="node-title" fill="#059669">AGENTS.md</text>
+    <rect x="116" y="6" width="44" height="14" rx="3" fill="#1DC981" opacity="0.2"/>
+    <text x="120" y="16" class="badge" fill="#059669">只读</text>
+    <text x="10" y="34" class="node-sub">项目环境记忆</text>
+    <text x="10" y="48" class="node-detail">子Agent清单/编排规范</text>
+    <text x="10" y="60" class="node-detail">文件系统地图/数据规范</text>
+  </g>
+
+  <!-- preferences.md -->
+  <g transform="translate(260,532)">
+    <rect x="0" y="0" width="196" height="72" rx="8" fill="#F0FDF4" stroke="#1DC981" stroke-width="1.5"/>
+    <text x="10" y="18" class="node-title" fill="#059669">preferences.md</text>
+    <rect x="110" y="6" width="56" height="14" rx="3" fill="#1DC981" opacity="0.3"/>
+    <text x="114" y="16" class="badge" fill="#059669">Agent可写</text>
+    <text x="10" y="34" class="node-sub">用户偏好记忆</text>
+    <text x="10" y="48" class="node-detail">基本信息/风险偏好</text>
+    <text x="10" y="60" class="node-detail">决策风格/风格画像(自进化)</text>
+  </g>
+
+  <!-- preferences.md.bak -->
+  <g transform="translate(56,616)">
+    <rect x="0" y="0" width="188" height="44" rx="8" fill="#FFF9C4" stroke="#F9A825" stroke-width="1"/>
+    <text x="10" y="18" class="node-title" style="font-size:11px;">preferences.md.bak</text>
+    <text x="10" y="32" class="node-detail">写入前 shutil.copy2 自动备份</text>
+  </g>
+
+  <!-- 价值分类 Prompt -->
+  <g transform="translate(260,616)">
+    <rect x="0" y="0" width="196" height="56" rx="8" fill="#FFF3E0" stroke="#F57C00" stroke-width="1.2"/>
+    <text x="10" y="18" class="node-title" style="font-size:11px;" fill="#B45309">价值分类 Prompt</text>
+    <text x="10" y="32" class="node-detail" fill="#1DC981">✓ 身份/偏好/长期事实/反馈修正</text>
+    <text x="10" y="44" class="node-detail" fill="#EF4444">✗ 寒暄/时效/一次性/敏感信息</text>
+  </g>
+
+  <!-- 写入来源三轨 -->
+  <text x="56" y="688" class="node-title" style="font-size:11px;">写入来源（三轨并行）:</text>
+
+  <g transform="translate(56,696)">
+    <rect x="0" y="0" width="124" height="56" rx="8" fill="#FFFFFF" stroke="#1DC981" stroke-width="1"/>
+    <text x="8" y="18" class="node-sub" style="font-weight:600;">① 初始化问卷</text>
+    <text x="8" y="32" class="node-detail">preferences_service</text>
+    <text x="8" y="44" class="node-detail">init_preferences()</text>
+  </g>
+  <g transform="translate(192,696)">
+    <rect x="0" y="0" width="124" height="56" rx="8" fill="#FFFFFF" stroke="#1DC981" stroke-width="1"/>
+    <text x="8" y="18" class="node-sub" style="font-weight:600;">② Agent edit_file</text>
+    <text x="8" y="32" class="node-detail">主Agent自主提炼</text>
+    <text x="8" y="44" class="node-detail">对话中实时写入</text>
+  </g>
+  <g transform="translate(328,696)">
+    <rect x="0" y="0" width="128" height="56" rx="8" fill="#FFFFFF" stroke="#1DC981" stroke-width="1"/>
+    <text x="8" y="18" class="node-sub" style="font-weight:600;">③ style_profiler</text>
+    <text x="8" y="32" class="node-detail">六维雷达自进化</text>
+    <text x="8" y="44" class="node-detail">_sync_to_preferences_md</text>
+  </g>
+
+  <!-- 权限控制 -->
+  <g transform="translate(56,768)">
+    <rect x="0" y="0" width="400" height="44" rx="8" fill="#FEF2F2" stroke="#EF4444" stroke-width="1" stroke-dasharray="3 2"/>
+    <text x="10" y="18" class="node-title" style="font-size:11px;" fill="#B91C1C">🔒 FilesystemPermission</text>
+    <text x="10" y="32" class="node-detail">仅 /memories/** 允许写入 · 其余全部 deny · ai_reader 子Agent 禁止 edit_file/write_file/delete</text>
+  </g>
+
+  <!-- 右面板：经验记忆 -->
+  <rect x="492" y="496" width="428" height="384" rx="10" fill="#FFFFFF" stroke="#F9A825" stroke-width="1" stroke-dasharray="3 2"/>
+  <text x="508" y="520" class="panel-title" fill="#B45309">🔮 经验记忆（ChromaDB 向量）</text>
+
+  <!-- ChromaDB 核心 -->
+  <g transform="translate(508,532)">
+    <rect x="0" y="0" width="188" height="72" rx="8" fill="#FFF9C4" stroke="#F9A825" stroke-width="1.5"/>
+    <text x="10" y="18" class="node-title" fill="#B45309">ChromaDB</text>
+    <text x="10" y="34" class="node-sub">experience_library_zh</text>
+    <text x="10" y="48" class="node-detail">嵌入: bge-small-zh-v1.5</text>
+    <text x="10" y="60" class="node-detail">存储: chroma.sqlite3</text>
+  </g>
+
+  <!-- 写回路 -->
+  <g transform="translate(712,532)">
+    <rect x="0" y="0" width="192" height="72" rx="8" fill="#FFFFFF" stroke="#F9A825" stroke-width="1.2"/>
+    <text x="10" y="18" class="node-title" style="font-size:11px;" fill="#B45309">✍️ 写回路</text>
+    <text x="10" y="34" class="node-sub">experience_loop_service</text>
+    <text x="10" y="48" class="node-detail">DecisionCard → 10日复盘</text>
+    <text x="10" y="60" class="node-detail">HIT/MISS → upsert ChromaDB</text>
+  </g>
+
+  <!-- 读回路 -->
+  <g transform="translate(508,616)">
+    <rect x="0" y="0" width="396" height="80" rx="8" fill="#E3F2FD" stroke="#22A5F7" stroke-width="1.5"/>
+    <text x="10" y="18" class="node-title" style="font-size:11px;" fill="#0D47A1">📖 读回路：三层检索 + 验证权重</text>
+    <text x="10" y="34" class="node-detail">① 结构化过滤: market_cycle + sector 双匹配=1.0 / 单匹配=0.5 / 无=0.0</text>
+    <text x="10" y="48" class="node-detail">② 语义相似度: bge cosine → 1/(1+L2_distance)</text>
+    <text x="10" y="62" class="node-detail">③ 时间衰减: 1/(1+0.1×months) · 超期=0.0</text>
+    <text x="10" y="74" class="node-detail">④ 复盘验证: HIT→权重1.0 / MISS→权重0.5（反例降权）</text>
+  </g>
+
+  <!-- 预算治理 -->
+  <g transform="translate(508,708)">
+    <rect x="0" y="0" width="396" height="56" rx="8" fill="#4B3FE3" opacity="0.06"/>
+    <rect x="0" y="0" width="396" height="56" rx="8" fill="none" stroke="#4B3FE3" stroke-width="1.2"/>
+    <text x="10" y="18" class="node-title" style="font-size:11px;" fill="#4B3FE3">预算治理 · inject_experience</text>
+    <text x="10" y="34" class="node-detail">≤3 条 · 单条 ≤400 字 · 总 ≤1200 字 · 反例最多 1 条 ⚠️</text>
+    <text x="10" y="46" class="node-detail">注入 PA Agent Stage2 pa_node 决策前（对应 PA 7节点 ⑤ inject_experience）</text>
+  </g>
+
+  <!-- 经验条目结构 -->
+  <g transform="translate(508,776)">
+    <rect x="0" y="0" width="396" height="44" rx="8" fill="#FFFFFF" stroke="#F9A825" stroke-width="1"/>
+    <text x="10" y="18" class="node-title" style="font-size:11px;">ExperienceEntry 结构</text>
+    <text x="10" y="32" class="node-detail">id=dc_{card_id} · tags=[reviewed, hit/miss] · market_cycle/sector/pattern/stock_code</text>
+  </g>
+
+  <!-- 写回路流程 -->
+  <g transform="translate(508,832)">
+    <rect x="0" y="0" width="396" height="36" rx="8" fill="#1DC981" opacity="0.08"/>
+    <text x="10" y="14" class="node-detail" fill="#059669">写回路: merge_node → DecisionCard落库 → review_pending(10日窗口) → HIT/MISS回填</text>
+    <text x="10" y="28" class="node-detail" fill="#059669">→ promote_pending → build_entry → ChromaDB upsert (幂等: id=dc_{card_id})</text>
+  </g>
+
+  <!-- ========== 跨层连接线 ========== -->
+  <!-- L3 文件记忆 → L1 MemoryMiddleware (读取) -->
+  <path d="M 146 496 L 146 176 L 146 148" fill="none" stroke="#22A5F7" stroke-width="2" stroke-linecap="round" stroke-dasharray="4 3" marker-end="url(#ms-arrow-read)"/>
+  <text x="60" y="340" class="conn-label" fill="#0D47A1" transform="rotate(-90 60 340)">读取 AGENTS.md + preferences.md</text>
+
+  <!-- L1 edit_file → L3 preferences.md (写入) -->
+  <path d="M 280 156 L 280 176 L 358 176 L 358 496 L 358 532" fill="none" stroke="#1DC981" stroke-width="2" stroke-linecap="round" stroke-dasharray="4 3" marker-end="url(#ms-arrow-write)"/>
+  <text x="370" y="340" class="conn-label" fill="#059669" transform="rotate(-90 370 340)">edit_file 写入偏好</text>
+
+  <!-- L1 usage → L2 context_tokens (透传) -->
+  <path d="M 792 148 L 792 216 L 792 256" fill="none" stroke="#4B3FE3" stroke-width="2" stroke-linecap="round" marker-end="url(#ms-arrow-ctx)"/>
+  <text x="800" y="190" class="conn-label" fill="#4B3FE3">usage 透传</text>
+
+  <!-- L2 → L3 经验写回路 -->
+  <path d="M 792 364 L 792 456 L 808 456 L 808 496 L 808 532" fill="none" stroke="#F9A825" stroke-width="2" stroke-linecap="round" stroke-dasharray="4 3" marker-end="url(#ms-arrow-exp)"/>
+  <text x="820" y="430" class="conn-label" fill="#B45309">DecisionCard → 经验写回路</text>
+
+  <!-- L3 经验读回路 → L1 PA Agent (注入) -->
+  <path d="M 706 616 L 706 200 L 706 176 L 574 176 L 574 148" fill="none" stroke="#F9A825" stroke-width="2" stroke-linecap="round" stroke-dasharray="4 3" marker-end="url(#ms-arrow-exp)"/>
+  <text x="720" y="420" class="conn-label" fill="#B45309" transform="rotate(-90 720 420)">经验注入 PA Agent</text>
+
+  <!-- L2 SummarizationMiddleware → L3 归档 -->
+  <path d="M 574 364 L 574 400 L 574 456 L 460 456 L 460 832" fill="none" stroke="#52525B" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="3 3" marker-end="url(#ms-arrow)"/>
+  <text x="500" y="450" class="conn-label">压缩历史归档</text>
+
+  <!-- 图例 -->
+  <g transform="translate(48,880)">
+    <rect x="0" y="0" width="14" height="10" rx="2" fill="#22A5F7" opacity="0.3"/>
+    <text x="20" y="10" class="conn-label">读取流</text>
+    <rect x="80" y="0" width="14" height="10" rx="2" fill="#1DC981" opacity="0.3"/>
+    <text x="100" y="10" class="conn-label">写入流</text>
+    <rect x="160" y="0" width="14" height="10" rx="2" fill="#F9A825" opacity="0.3"/>
+    <text x="180" y="10" class="conn-label">经验回路</text>
+    <rect x="250" y="0" width="14" height="10" rx="2" fill="#4B3FE3" opacity="0.3"/>
+    <text x="270" y="10" class="conn-label">Token 统计</text>
+    <rect x="340" y="0" width="14" height="10" rx="2" fill="#52525B" opacity="0.3"/>
+    <text x="360" y="10" class="conn-label">归档流</text>
+  </g>
+
+  <!-- 标题 -->
+  <text x="480" y="920" text-anchor="middle" style="font-size:14px;font-weight:700;fill:#171717;">Investment Compass — 记忆系统三层架构图</text>
+</svg>

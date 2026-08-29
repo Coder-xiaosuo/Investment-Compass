@@ -1,0 +1,4 @@
+interface:
+  display_name: "AlwaysIn与20GB"
+  short_description: "Always In Long/Short倾向判断和20 Gap Bars方向过滤规则"
+  default_prompt: "加载 AlwaysIn与20GB 技能包，参考 文件20-AlwaysIn与20GB.txt 中的价格行为交易知识进行当前分析。Always In Long/Short倾向判断和20 Gap Bars方向过滤规则"

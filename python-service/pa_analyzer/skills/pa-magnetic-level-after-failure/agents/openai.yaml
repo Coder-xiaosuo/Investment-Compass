@@ -1,0 +1,4 @@
+interface:
+  display_name: "信号失败后的磁力位"
+  short_description: "交易信号失败后的磁力位（Magnetic Level）回调目标分析方法"
+  default_prompt: "加载 信号失败后的磁力位 技能包，参考 文件22-信号失败后的磁力位.txt 中的价格行为交易知识进行当前分析。交易信号失败后的磁力位（Magnetic Level）回调目标分析方法"

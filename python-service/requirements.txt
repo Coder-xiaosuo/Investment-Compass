@@ -1,0 +1,26 @@
+# FinAgentOS — Python Service
+fastapi>=0.115.0
+uvicorn[standard]
+pydantic>=2.0
+akshare>=1.16
+pandas
+pyarrow
+sqlalchemy>=2.0
+pymysql
+pyjwt>=2.0
+python-dotenv
+openai>=1.0
+langgraph>=0.3.0
+langchain-openai>=0.3.0
+chromadb>=0.6.0
+deepagents>=0.7.4
+langgraph-checkpoint-mysql>=3.0.0
+aiomysql>=0.2.0
+langgraph-checkpoint-redis>=0.5.1
+redis>=7.0
+apscheduler>=3.10
+matplotlib>=3.9
+# Fernet 对称加密（敏感字段加密存储；Fernet 不可用时自动降级到 XOR）
+cryptography>=42.0.0
+# 连通性测试 / settings 同步 HTTP 客户端
+httpx>=0.27.0

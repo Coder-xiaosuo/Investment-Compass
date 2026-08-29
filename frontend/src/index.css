@@ -1,0 +1,155 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Courier New', monospace;
+
+  --color-bg-base: #f4f6f9;
+  --color-bg-surface: #ffffff;
+  --color-bg-hover: #f0f2f5;
+  --color-bg-subtle: #f8f9fb;
+  --color-border: #e2e5ea;
+  --color-border-light: #eef0f2;
+
+  --color-text-primary: #1f2937;
+  --color-text-secondary: #6b7280;
+  --color-text-tertiary: #949aa8;
+  --color-text-placeholder: #c2c7d0;
+
+  /* 中国市场标准：红涨绿跌 */
+  --color-up: #dc2626;
+  --color-down: #16a34a;
+  --color-warning: #f59e0b;
+  --color-info: #3b82f6;
+  --color-success: #3fb950;
+  --color-danger: #f85149;
+  --color-neutral: #e6b800;
+
+  --color-accent: #3b82f6;
+  --color-accent-hover: #2563eb;
+  --color-accent-soft: #eff6ff;
+
+  --color-bg-sidebar: #f2f3f5;
+  --color-bg-sidebar-hover: #e3e5e8;
+  --color-bg-sidebar-active: #d5d7dc;
+
+  /* 面板/模式切换淡入 */
+  --animate-fade-in: fade-in 0.25s ease-out;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* 雷达图脉冲动画：呼吸式缩放 + 微旋转 */
+  --animate-radar-pulse: radar-pulse 4s ease-in-out infinite;
+
+  @keyframes radar-pulse {
+    0%, 100% {
+      opacity: 0.7;
+      transform: scale(0.97) rotate(0deg);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.02) rotate(1.5deg);
+    }
+  }
+}
+
+/* Hero Text 逐字渐入上浮（放在 @theme 外部，确保始终输出到 CSS） */
+@keyframes hero-char-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 无障碍：用户偏好减少动画时，直接显示最终状态 */
+@media (prefers-reduced-motion: reduce) {
+  .hero-char {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+  }
+}
+
+/* 自定义工具类 */
+@utility scrollbar-hide {
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@utility text-up {
+  color: var(--color-up);
+}
+
+@utility text-down {
+  color: var(--color-down);
+}
+
+/* ── Markdown 紧凑模式（右侧面板）─────────────────────────────────────
+   覆盖 Markdown.tsx 组件内的 text-base/lg/xl 工具类：
+   specificity (.md-body-compact + 元素) > (.text-*) 使其生效 */
+.md-body-compact p,
+.md-body-compact li {
+  font-size: 0.75rem; /* text-xs */
+  line-height: 1.5;
+}
+.md-body-compact h1 {
+  font-size: 1rem; /* text-base */
+}
+.md-body-compact h2,
+.md-body-compact h3,
+.md-body-compact h4 {
+  font-size: 0.8125rem; /* 13px，介于 xs 与 base 之间 */
+}
+.md-body-compact blockquote {
+  font-size: 0.75rem;
+}
+.md-body-compact table {
+  font-size: 0.6875rem; /* 11px，表格更紧凑 */
+}
+.md-body-compact td {
+  font-size: 0.6875rem;
+}
+.md-body-compact th {
+  font-size: 0.6875rem;
+}
+.md-body-compact code {
+  font-size: 0.75rem;
+}
+.md-body-compact pre {
+  font-size: 0.75rem;
+}
+
+/* 全局样式 */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}

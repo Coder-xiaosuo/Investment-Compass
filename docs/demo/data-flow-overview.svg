@@ -1,0 +1,300 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 860" width="100%" height="auto" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif">
+  <defs>
+    <marker id="df-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M1 1 L7 4 L1 7 Z" fill="#52525B"/>
+    </marker>
+    <marker id="df-arrow-brand" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M1 1 L7 4 L1 7 Z" fill="#4B3FE3"/>
+    </marker>
+    <marker id="df-arrow-ok" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M1 1 L7 4 L1 7 Z" fill="#1DC981"/>
+    </marker>
+    <marker id="df-arrow-warn" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M1 1 L7 4 L1 7 Z" fill="#EFAA17"/>
+    </marker>
+  </defs>
+
+  <style>
+    .layer { font-size: 13px; font-weight: 600; fill: #171717; }
+    .node-title { font-size: 12px; font-weight: 600; fill: #171717; }
+    .node-sub { font-size: 10px; fill: #52525B; }
+    .conn-label { font-size: 10px; fill: #52525B; }
+    .flow-title { font-size: 14px; font-weight: 700; fill: #171717; }
+    .flow-sub { font-size: 11px; fill: #52525B; }
+    .step { font-size: 10px; font-weight: 700; fill: #FFFFFF; }
+  </style>
+
+  <rect x="0" y="0" width="960" height="860" fill="#F7F7F8" rx="12"/>
+
+  <!-- ========== 数据流1：实时行情推送 ========== -->
+  <rect x="20" y="16" width="920" height="164" rx="12" fill="#E3F2FD" stroke="#22A5F7" stroke-width="1.5" opacity="0.6"/>
+  <text x="40" y="42" class="flow-title" fill="#0D47A1">📡 数据流 1：实时行情推送</text>
+  <text x="230" y="42" class="flow-sub">Python 轮询 → Redis Pub/Sub → Java WS → 前端</text>
+
+  <!-- 步骤节点 -->
+  <g transform="translate(40,60)">
+    <circle cx="16" cy="18" r="14" fill="#22A5F7"/>
+    <text x="16" y="22" text-anchor="middle" class="step">1</text>
+    <rect x="36" y="0" width="132" height="40" rx="8" fill="#FFFFFF" stroke="#22A5F7" stroke-width="1.2"/>
+    <text x="46" y="18" class="node-title">quote_publisher</text>
+    <text x="46" y="32" class="node-sub">AkShare spot · 3s 间隔</text>
+  </g>
+
+  <g transform="translate(204,60)">
+    <circle cx="16" cy="18" r="14" fill="#22A5F7"/>
+    <text x="16" y="22" text-anchor="middle" class="step">2</text>
+    <rect x="36" y="0" width="168" height="40" rx="8" fill="#FFFFFF" stroke="#22A5F7" stroke-width="1.2"/>
+    <text x="46" y="18" class="node-title">Redis</text>
+    <text x="46" y="32" class="node-sub">Hash 快照 + quotes 频道</text>
+  </g>
+
+  <g transform="translate(398,60)">
+    <circle cx="16" cy="18" r="14" fill="#22A5F7"/>
+    <text x="16" y="22" text-anchor="middle" class="step">3</text>
+    <rect x="36" y="0" width="156" height="40" rx="8" fill="#FFFFFF" stroke="#22A5F7" stroke-width="1.2"/>
+    <text x="46" y="18" class="node-title">Java 订阅广播</text>
+    <text x="46" y="32" class="node-sub">RedisSub → WS SessionMgr</text>
+  </g>
+
+  <g transform="translate(580,60)">
+    <circle cx="16" cy="18" r="14" fill="#22A5F7"/>
+    <text x="16" y="22" text-anchor="middle" class="step">4</text>
+    <rect x="36" y="0" width="156" height="40" rx="8" fill="#FFFFFF" stroke="#22A5F7" stroke-width="1.2"/>
+    <text x="46" y="18" class="node-title">WebSocket /ws/quote</text>
+    <text x="46" y="32" class="node-sub">按订阅过滤分发</text>
+  </g>
+
+  <g transform="translate(762,60)">
+    <circle cx="16" cy="18" r="14" fill="#22A5F7"/>
+    <text x="16" y="22" text-anchor="middle" class="step">5</text>
+    <rect x="36" y="0" width="136" height="40" rx="8" fill="#FFFFFF" stroke="#22A5F7" stroke-width="1.2"/>
+    <text x="46" y="18" class="node-title">前端 WS 客户端</text>
+    <text x="46" y="32" class="node-sub">实时刷新行情卡片</text>
+  </g>
+
+  <!-- 连接线 -->
+  <path d="M 176 80 L 204 80" stroke="#22A5F7" stroke-width="2" fill="none" marker-end="url(#df-arrow-brand)"/>
+  <path d="M 372 80 L 398 80" stroke="#22A5F7" stroke-width="2" fill="none" marker-end="url(#df-arrow-brand)"/>
+  <path d="M 554 80 L 580 80" stroke="#22A5F7" stroke-width="2" fill="none" marker-end="url(#df-arrow-brand)"/>
+  <path d="M 736 80 L 762 80" stroke="#22A5F7" stroke-width="2" fill="none" marker-end="url(#df-arrow-brand)"/>
+  <path d="M 898 80 L 908 80 L 908 120 L 898 120" stroke="#22A5F7" stroke-width="1.5" fill="none" stroke-dasharray="2 3"/>
+
+  <!-- ========== 数据流2：AI 对话编排 ========== -->
+  <rect x="20" y="196" width="920" height="404" rx="12" fill="#F3E5F5" stroke="#4B3FE3" stroke-width="1.5" opacity="0.6"/>
+  <text x="40" y="222" class="flow-title" fill="#4B3FE3">🤖 数据流 2：AI 对话两阶段编排</text>
+  <text x="290" y="222" class="flow-sub">估值评估 → HITL 中断 → 技术分析（LangGraph 7 节点）→ 决策卡片</text>
+
+  <!-- Stage1 估值评估 -->
+  <rect x="40" y="240" width="360" height="168" rx="10" fill="#FFFFFF" stroke="#4B3FE3" stroke-width="1" stroke-dasharray="3 2"/>
+  <text x="56" y="262" class="node-title" fill="#4B3FE3">Stage 1 · 价值评估</text>
+
+  <g transform="translate(56,272)">
+    <rect x="0" y="0" width="92" height="32" rx="6" fill="#F2F7FF" stroke="#4B3FE3" stroke-width="1"/>
+    <text x="8" y="14" class="node-sub" style="font-size:11px;font-weight:600;fill:#4B3FE3;">财务数据</text>
+    <text x="8" y="26" class="node-sub" style="font-size:9px;">ROE/营收/负债</text>
+  </g>
+  <g transform="translate(158,272)">
+    <rect x="0" y="0" width="92" height="32" rx="6" fill="#FFF3E0" stroke="#EF4444" stroke-width="1.2"/>
+    <text x="8" y="14" class="node-sub" style="font-size:11px;font-weight:600;fill:#B91C1C;">gates 门控</text>
+    <text x="8" y="26" class="node-sub" style="font-size:9px;">ST/负ROE/高负债</text>
+  </g>
+  <g transform="translate(260,272)">
+    <rect x="0" y="0" width="92" height="32" rx="6" fill="#EAFBF8" stroke="#27D2BF" stroke-width="1"/>
+    <text x="8" y="14" class="node-sub" style="font-size:11px;font-weight:600;fill:#0F766E;">scorer 评分</text>
+    <text x="8" y="26" class="node-sub" style="font-size:9px;">5维度 权重评分</text>
+  </g>
+
+  <g transform="translate(56,320)">
+    <path d="M 46 0 L 46 20" fill="none" stroke="#52525B" stroke-width="1" marker-end="url(#df-arrow)"/>
+    <path d="M 150 0 L 150 20" fill="none" stroke="#52525B" stroke-width="1" marker-end="url(#df-arrow)"/>
+    <path d="M 250 0 L 250 20" fill="none" stroke="#52525B" stroke-width="1" marker-end="url(#df-arrow)"/>
+  </g>
+
+  <g transform="translate(56,340)">
+    <rect x="0" y="0" width="296" height="56" rx="8" fill="#4B3FE3" opacity="0.08"/>
+    <rect x="0" y="0" width="296" height="56" rx="8" fill="none" stroke="#4B3FE3" stroke-width="1.2"/>
+    <text x="12" y="20" class="node-title" fill="#4B3FE3">LLM 定性重评</text>
+    <text x="12" y="36" class="node-sub">评分+财务数据 → ValuationResult · score/level/recommend</text>
+    <text x="12" y="48" class="node-sub">score < 40 提前拦截，直接给出不建议</text>
+  </g>
+
+  <!-- HITL 中断 -->
+  <g transform="translate(432,290)">
+    <path d="M 400 324 L 432 324" fill="none" stroke="#4B3FE3" stroke-width="2" marker-end="url(#df-arrow-brand)"/>
+    <polygon points="80,0 0,40 160,40 160,70 0,70 0,40 80,0" fill="#FFFFFF" stroke="#EFAA17" stroke-width="1.5"/>
+    <text x="80" y="28" text-anchor="middle" class="node-title" fill="#B45309">⚡ HITL 中断</text>
+    <text x="80" y="46" text-anchor="middle" class="node-sub" style="font-size:10px;">confirm_proceed_analysis</text>
+    <text x="80" y="58" text-anchor="middle" class="node-sub" style="font-size:10px;">approve / reject / respond</text>
+  </g>
+
+  <!-- 用户决策 -->
+  <g transform="translate(610,300)">
+    <path d="M 592 324 L 610 324" fill="none" stroke="#EFAA17" stroke-width="1.5" stroke-dasharray="2 3" marker-end="url(#df-arrow-warn)"/>
+    <rect x="0" y="0" width="120" height="48" rx="8" fill="#FFF9C4" stroke="#EFAA17" stroke-width="1.2"/>
+    <text x="10" y="18" class="node-title" style="font-size:11px;">👤 用户决策</text>
+    <text x="10" y="32" class="node-sub">POST /resume 续流</text>
+  </g>
+
+  <!-- Stage2 技术分析 -->
+  <rect x="40" y="420" width="432" height="168" rx="10" fill="#FFFFFF" stroke="#7B1FA2" stroke-width="1" stroke-dasharray="3 2"/>
+  <text x="56" y="442" class="node-title" fill="#7B1FA2">Stage 2 · 技术分析（LangGraph 7 节点）</text>
+
+  <!-- Stage2 节点行1 -->
+  <g transform="translate(56,452)">
+    <rect x="0" y="0" width="68" height="36" rx="6" fill="#FFFFFF" stroke="#7B1FA2" stroke-width="1"/>
+    <text x="6" y="15" class="node-sub" style="font-size:10px;font-weight:600;">① parse</text>
+    <text x="6" y="28" class="node-sub" style="font-size:9px;">解析+K线</text>
+  </g>
+  <g transform="translate(134,452)">
+    <rect x="0" y="0" width="68" height="36" rx="6" fill="#FFFFFF" stroke="#7B1FA2" stroke-width="1"/>
+    <text x="6" y="15" class="node-sub" style="font-size:10px;font-weight:600;">② features</text>
+    <text x="6" y="28" class="node-sub" style="font-size:9px;">K线特征</text>
+  </g>
+  <g transform="translate(212,452)">
+    <rect x="0" y="0" width="68" height="36" rx="6" fill="#FFFFFF" stroke="#7B1FA2" stroke-width="1"/>
+    <text x="6" y="15" class="node-sub" style="font-size:10px;font-weight:600;">③ stage1</text>
+    <text x="6" y="28" class="node-sub" style="font-size:9px;">市场诊断</text>
+  </g>
+  <g transform="translate(290,452)">
+    <rect x="0" y="0" width="68" height="36" rx="6" fill="#FFFFFF" stroke="#7B1FA2" stroke-width="1"/>
+    <text x="6" y="15" class="node-sub" style="font-size:10px;font-weight:600;">④ strategy</text>
+    <text x="6" y="28" class="node-sub" style="font-size:9px;">加载策略</text>
+  </g>
+
+  <!-- Stage2 节点行2 -->
+  <g transform="translate(56,500)">
+    <rect x="0" y="0" width="68" height="36" rx="6" fill="#FFFFFF" stroke="#7B1FA2" stroke-width="1"/>
+    <text x="6" y="15" class="node-sub" style="font-size:10px;font-weight:600;">⑤ exp</text>
+    <text x="6" y="28" class="node-sub" style="font-size:9px;">经验注入</text>
+  </g>
+  <g transform="translate(134,500)">
+    <rect x="0" y="0" width="146" height="36" rx="6" fill="#7B1FA2" opacity="0.1"/>
+    <rect x="0" y="0" width="146" height="36" rx="6" fill="none" stroke="#7B1FA2" stroke-width="1.4"/>
+    <text x="8" y="15" class="node-sub" style="font-size:10px;font-weight:700;fill:#7B1FA2;">⑥ pa_node · 决策</text>
+    <text x="8" y="28" class="node-sub" style="font-size:9px;">TechnicalResult LLM</text>
+  </g>
+  <g transform="translate(298,500)">
+    <rect x="0" y="0" width="68" height="36" rx="6" fill="#FFFFFF" stroke="#7B1FA2" stroke-width="1"/>
+    <text x="6" y="15" class="node-sub" style="font-size:10px;font-weight:600;">⑦ merge</text>
+    <text x="6" y="28" class="node-sub" style="font-size:9px;">合并输出</text>
+  </g>
+
+  <!-- Stage2 内部连接线 -->
+  <path d="M 124 470 L 134 470" stroke="#7B1FA2" stroke-width="1" fill="none" marker-end="url(#df-arrow-brand)"/>
+  <path d="M 202 470 L 212 470" stroke="#7B1FA2" stroke-width="1" fill="none" marker-end="url(#df-arrow-brand)"/>
+  <path d="M 280 470 L 290 470" stroke="#7B1FA2" stroke-width="1" fill="none" marker-end="url(#df-arrow-brand)"/>
+  <path d="M 500 372 L 500 396 L 120 396 L 120 420 L 90 452" fill="none" stroke="#7B1FA2" stroke-width="1.5" marker-end="url(#df-arrow-brand)"/>
+  <path d="M 124 518 L 134 518" stroke="#7B1FA2" stroke-width="1" fill="none" marker-end="url(#df-arrow-brand)"/>
+  <path d="M 280 518 L 298 518" stroke="#7B1FA2" stroke-width="1" fill="none" marker-end="url(#df-arrow-brand)"/>
+  <!-- 行1→行2 -->
+  <path d="M 90 488 L 90 498" stroke="#7B1FA2" stroke-width="1" fill="none" marker-end="url(#df-arrow-brand)"/>
+  <path d="M 168 488 L 206 500" stroke="#7B1FA2" stroke-width="1" fill="none" marker-end="url(#df-arrow-brand)"/>
+  <path d="M 246 488 L 282 500" stroke="#7B1FA2" stroke-width="1" fill="none" marker-end="url(#df-arrow-brand)"/>
+
+  <!-- 经验注入来源 -->
+  <g transform="translate(366,452)">
+    <rect x="0" y="0" width="92" height="36" rx="6" fill="#FFF9C4" stroke="#F9A825" stroke-width="1"/>
+    <text x="6" y="15" class="node-sub" style="font-size:10px;font-weight:600;">Chroma 经验</text>
+    <text x="6" y="28" class="node-sub" style="font-size:9px;">三层检索</text>
+    <path d="M 46 36 L 46 50 L 90 50 L 90 500" fill="none" stroke="#F9A825" stroke-width="1" stroke-dasharray="2 2" marker-end="url(#df-arrow)"/>
+  </g>
+
+  <!-- 决策卡片输出 -->
+  <g transform="translate(488,500)">
+    <path d="M 366 518 L 488 518" fill="none" stroke="#7B1FA2" stroke-width="1.5" marker-end="url(#df-arrow-brand)"/>
+    <rect x="0" y="0" width="160" height="48" rx="8" fill="#1DC981" opacity="0.15"/>
+    <rect x="0" y="0" width="160" height="48" rx="8" fill="none" stroke="#1DC981" stroke-width="1.5"/>
+    <text x="12" y="18" class="node-title" fill="#059669">DecisionCard</text>
+    <text x="12" y="32" class="node-sub">复合决策 + 复盘回填</text>
+    <text x="12" y="44" class="node-sub">trace_id 幂等</text>
+  </g>
+
+  <!-- 前端入口 -->
+  <g transform="translate(748,290)">
+    <rect x="0" y="0" width="144" height="64" rx="8" fill="#4B3FE3" opacity="0.08"/>
+    <rect x="0" y="0" width="144" height="64" rx="8" fill="none" stroke="#4B3FE3" stroke-width="1.2"/>
+    <text x="10" y="18" class="node-title" fill="#4B3FE3">前端 ChatView</text>
+    <text x="10" y="32" class="node-sub">POST /message/stream</text>
+    <text x="10" y="48" class="node-sub">SSE 流式 → SubagentCard</text>
+    <path d="M 72 64 L 72 108 L 400 108 L 400 240" fill="none" stroke="#4B3FE3" stroke-width="2" marker-end="url(#df-arrow-brand)"/>
+  </g>
+
+  <!-- 决策卡片 → 前端 -->
+  <path d="M 648 524 L 648 540 L 820 540 L 820 354" fill="none" stroke="#1DC981" stroke-width="1.5" stroke-dasharray="3 2" marker-end="url(#df-arrow-ok)"/>
+  <text x="680" y="536" class="conn-label" fill="#059669">右栏任务摘要 → DecisionCard</text>
+
+  <!-- ========== 数据流3：经验闭环 RAG ========== -->
+  <rect x="20" y="616" width="920" height="224" rx="12" fill="#E8F5E9" stroke="#1DC981" stroke-width="1.5" opacity="0.6"/>
+  <text x="40" y="642" class="flow-title" fill="#059669">🔁 数据流 3：经验闭环 RAG</text>
+  <text x="250" y="642" class="flow-sub">写侧（复盘→提升） 读侧（三层检索→注入）</text>
+
+  <!-- 写侧 -->
+  <rect x="40" y="656" width="432" height="168" rx="10" fill="#FFFFFF" stroke="#1DC981" stroke-width="1" stroke-dasharray="3 2"/>
+  <text x="56" y="678" class="node-title" fill="#059669">✍️ 写侧：经验沉淀</text>
+
+  <g transform="translate(56,688)">
+    <rect x="0" y="0" width="96" height="36" rx="6" fill="#FFFFFF" stroke="#1DC981" stroke-width="1"/>
+    <text x="8" y="15" class="node-sub" style="font-size:11px;font-weight:600;">decision_cards</text>
+    <text x="8" y="28" class="node-sub" style="font-size:9px;">BUY/SELL 决策</text>
+  </g>
+  <g transform="translate(168,688)">
+    <path d="M -16 18 L 0 18" stroke="#1DC981" stroke-width="1.5" fill="none" marker-end="url(#df-arrow-ok)"/>
+    <rect x="0" y="0" width="140" height="36" rx="6" fill="#FFF9C4" stroke="#F9A825" stroke-width="1"/>
+    <text x="8" y="15" class="node-sub" style="font-size:10px;font-weight:600;">experience_loop_service</text>
+    <text x="8" y="28" class="node-sub" style="font-size:9px;">复盘回填·10日窗口</text>
+  </g>
+  <g transform="translate(324,688)">
+    <path d="M -16 18 L 0 18" stroke="#F9A825" stroke-width="1.5" fill="none" marker-end="url(#df-arrow)"/>
+    <rect x="0" y="0" width="132" height="36" rx="6" fill="#FFFFFF" stroke="#1DC981" stroke-width="1"/>
+    <text x="8" y="15" class="node-sub" style="font-size:11px;font-weight:600;">review_outcome</text>
+    <text x="8" y="28" class="node-sub" style="font-size:9px;">HIT / MISS 回填</text>
+  </g>
+
+  <g transform="translate(56,744)">
+    <path d="M 280 48 L 280 38 L 62 38 L 62 56" stroke="#1DC981" stroke-width="1.5" fill="none" marker-end="url(#df-arrow-ok)"/>
+    <rect x="0" y="56" width="396" height="60" rx="8" fill="#1DC981" opacity="0.1"/>
+    <rect x="0" y="56" width="396" height="60" rx="8" fill="none" stroke="#1DC981" stroke-width="1.5"/>
+    <text x="12" y="78" class="node-title" fill="#059669">提升进 ChromaDB</text>
+    <text x="12" y="94" class="node-sub">经验条目：market_cycle / sector / pattern / stock_code</text>
+    <text x="12" y="108" class="node-sub">嵌入模型：bge-small-zh-v1.5 · 复盘 HIT 权重=1.0 / MISS=0.5</text>
+  </g>
+
+  <!-- 读侧 -->
+  <rect x="492" y="656" width="428" height="168" rx="10" fill="#FFFFFF" stroke="#22A5F7" stroke-width="1" stroke-dasharray="3 2"/>
+  <text x="508" y="678" class="node-title" fill="#0D47A1">📖 读侧：经验注入</text>
+
+  <g transform="translate(508,688)">
+    <rect x="0" y="0" width="140" height="52" rx="6" fill="#E3F2FD" stroke="#22A5F7" stroke-width="1.2"/>
+    <text x="8" y="16" class="node-sub" style="font-size:10px;font-weight:700;fill:#0D47A1;">三层检索策略</text>
+    <text x="8" y="30" class="node-sub" style="font-size:9px;">① 结构化：cycle+sector</text>
+    <text x="8" y="42" class="node-sub" style="font-size:9px;">② 语义：bge cosine</text>
+    <text x="8" y="54" class="node-sub" style="font-size:9px;">③ 时间衰减+复盘验证</text>
+  </g>
+
+  <g transform="translate(668,688)">
+    <path d="M -16 26 L 0 26" stroke="#22A5F7" stroke-width="1.5" fill="none" marker-end="url(#df-arrow-brand)"/>
+    <rect x="0" y="0" width="124" height="52" rx="6" fill="#FFFFFF" stroke="#22A5F7" stroke-width="1"/>
+    <text x="8" y="16" class="node-sub" style="font-size:10px;font-weight:600;">预算治理</text>
+    <text x="8" y="28" class="node-sub" style="font-size:9px;">≤3条 单条≤400字</text>
+    <text x="8" y="40" class="node-sub" style="font-size:9px;">总≤1200字</text>
+    <text x="8" y="52" class="node-sub" style="font-size:9px;">反例最多1条⚠️</text>
+  </g>
+
+  <g transform="translate(508,756)">
+    <path d="M 234 16 L 234 6 L 62 6 L 62 68" fill="none" stroke="#22A5F7" stroke-width="1.5"/>
+    <path d="M 792 26 L 804 26 L 804 48 L 424 48" fill="none" stroke="#22A5F7" stroke-width="1.5" marker-end="url(#df-arrow-brand)"/>
+    <rect x="0" y="68" width="412" height="44" rx="8" fill="#4B3FE3" opacity="0.08"/>
+    <rect x="0" y="68" width="412" height="44" rx="8" fill="none" stroke="#4B3FE3" stroke-width="1.2"/>
+    <text x="12" y="88" class="node-title" fill="#4B3FE3">注入 PA Agent prompt</text>
+    <text x="12" y="104" class="node-sub">Stage2 决策前，在 inject_experience 节点注入（参考图2 节点⑤）</text>
+  </g>
+
+  <!-- 写侧→读侧共享箭头 -->
+  <g transform="translate(460,760)">
+    <path d="M 0 -72 L 12 -72 L 12 -30 L -8 -30" fill="none" stroke="#1DC981" stroke-width="1.5" stroke-dasharray="2 2" marker-end="url(#df-arrow-ok)"/>
+    <text x="-40" y="-56" class="conn-label" transform="rotate(-90 -40 -56)" fill="#059669">已复盘经验共享</text>
+  </g>
+
+  <!-- 标题 -->
+  <text x="480" y="848" text-anchor="middle" style="font-size:14px;font-weight:700;fill:#171717;">Investment Compass — 三条核心数据流图</text>
+</svg>

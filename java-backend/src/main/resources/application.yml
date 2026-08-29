@@ -1,0 +1,50 @@
+spring:
+  devtools:
+    restart:
+      enabled: false
+
+  application:
+    name: Investment-Compass
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 3000
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 4
+          min-idle: 1
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/investment_compass?useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=Asia/Shanghai
+    username: root
+    password:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      idle-timeout: 30000
+      max-lifetime: 600000
+      connection-timeout: 30000
+
+server:
+  port: 8879
+  servlet:
+    context-path: /api
+
+logging:
+  level:
+    root: info
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/ai-agent-linux.log
+    max-size: 10MB
+    max-history: 7
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 7

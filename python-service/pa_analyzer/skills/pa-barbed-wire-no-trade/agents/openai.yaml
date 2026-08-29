@@ -1,0 +1,4 @@
+interface:
+  display_name: "铁丝网与无交易环境"
+  short_description: "铁丝网（Barbed Wire）形态识别和窄横盘无交易环境的判断"
+  default_prompt: "加载 铁丝网与无交易环境 技能包，参考 文件21-铁丝网与无交易环境.txt 中的价格行为交易知识进行当前分析。铁丝网（Barbed Wire）形态识别和窄横盘无交易环境的判断"

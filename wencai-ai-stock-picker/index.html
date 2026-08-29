@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>问财AI选股 - 小马团团</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+            },
+            surface: '#f9fafb',
+          },
+          fontFamily: {
+            sans: ['DM Sans', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+          },
+          boxShadow: {
+            card: '0 2px 8px -2px rgba(0, 0, 0, 0.06), 0 1px 3px -1px rgba(0, 0, 0, 0.04)',
+            'card-hover': '0 8px 24px -6px rgba(0, 0, 0, 0.08), 0 4px 8px -4px rgba(0, 0, 0, 0.04)',
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    :root {
+      --sidebar-width: 240px;
+    }
+    body {
+      font-family: 'DM Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    .sidebar-item {
+      transition: background-color 0.18s ease, color 0.18s ease;
+    }
+    .card-hover {
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+    .card-hover:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.08), 0 4px 8px -4px rgba(0, 0, 0, 0.04);
+    }
+    .hide-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .hide-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .event-swatch {
+      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    }
+  </style>
+</head>
+<body class="bg-surface text-gray-800 antialiased h-screen overflow-hidden">
+
+  <div class="flex h-full">
+    <!-- 侧边栏 -->
+    <aside class="w-[var(--sidebar-width)] min-w-[var(--sidebar-width)] bg-white border-r border-gray-100 flex flex-col justify-between h-full shrink-0">
+      <div>
+        <!-- Logo -->
+        <div class="h-16 flex items-center px-6">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-gray-900 flex items-center justify-center">
+              <svg class="w-5 h-5 text-yellow-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                <path d="M2 17l10 5 10-5"/>
+                <path d="M2 12l10 5 10-5"/>
+              </svg>
+            </div>
+            <span class="text-lg font-bold text-gray-900 tracking-tight">小马<span class="text-yellow-500">团团</span></span>
+          </div>
+        </div>
+
+        <!-- 导航菜单 -->
+        <nav class="px-3 pt-2 space-y-1">
+          <a href="#" class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-700 hover:bg-gray-50">
+            <svg class="w-5 h-5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 5v14M5 12h14"/>
+            </svg>
+            <span class="text-sm font-medium">新对话</span>
+          </a>
+          <a href="#" class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl bg-brand-50 text-brand-600">
+            <svg class="w-5 h-5 text-brand-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 3v18h18"/>
+              <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/>
+            </svg>
+            <span class="text-sm font-semibold">AI选股</span>
+          </a>
+          <a href="#" class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-700 hover:bg-gray-50">
+            <svg class="w-5 h-5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/>
+              <path d="M21 21l-4.3-4.3"/>
+            </svg>
+            <span class="text-sm font-medium">AI搜索</span>
+          </a>
+          <a href="#" class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-700 hover:bg-gray-50">
+            <svg class="w-5 h-5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+            <span class="text-sm font-medium">我的收藏</span>
+          </a>
+        </nav>
+      </div>
+
+      <!-- 用户信息 -->
+      <div class="p-4 border-t border-gray-100">
+        <div class="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors">
+          <div class="w-9 h-9 rounded-full bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center text-white text-sm font-semibold">
+            用
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-gray-900 truncate">投资用户</p>
+            <p class="text-xs text-gray-500 truncate">user@example.com</p>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 主内容区 -->
+    <main class="flex-1 min-w-0 h-full overflow-y-auto">
+      <div class="max-w-6xl mx-auto px-8 py-10">
+
+        <!-- 顶部标题区 -->
+        <div class="text-center mb-10">
+          <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-brand-500 text-white mb-4 shadow-lg shadow-brand-500/20">
+            <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 3v18h18"/>
+              <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/>
+            </svg>
+          </div>
+          <h1 class="text-3xl font-bold text-gray-900 tracking-tight mb-2">问财AI选股</h1>
+          <p class="text-base text-gray-500">输入条件，多维筛选，精准捕捉</p>
+        </div>
+
+        <!-- 搜索输入区 -->
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-card p-4 mb-6">
+          <div class="flex items-start gap-3">
+            <div class="flex-1 min-w-0">
+              <input
+                type="text"
+                class="w-full h-14 px-5 text-base text-gray-800 placeholder-gray-400 bg-transparent border-0 outline-none"
+                placeholder="请输入您的筛选条件，多个条件用分号隔开"
+              >
+              <div class="flex items-center gap-2 px-2 pb-1">
+                <button class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-50 text-gray-700 text-sm font-medium hover:bg-gray-100 transition-colors">
+                  <span>A股</span>
+                  <svg class="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M6 9l6 6 6-6"/>
+                  </svg>
+                </button>
+                <button class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-50 text-gray-700 text-sm font-medium hover:bg-gray-100 transition-colors">
+                  <svg class="w-3.5 h-3.5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+                  </svg>
+                  <span>条件选股</span>
+                </button>
+                <button class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-50 text-gray-700 text-sm font-medium hover:bg-gray-100 transition-colors">
+                  <svg class="w-3.5 h-3.5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                  </svg>
+                  <span>我的收藏</span>
+                </button>
+              </div>
+            </div>
+            <button class="w-12 h-12 rounded-full bg-brand-500 hover:bg-brand-600 text-white flex items-center justify-center shadow-lg shadow-brand-500/25 transition-colors shrink-0 mt-1">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 19V5M5 12l7-7 7 7"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- 内容卡片网格区 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+
+          <!-- 卡片 1：今天炒什么 -->
+          <div class="bg-white rounded-xl border border-gray-100 shadow-card p-5 card-hover">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-bold text-gray-900">今天炒什么</h3>
+            </div>
+            <ul class="space-y-3">
+              <li class="flex items-center justify-between py-1">
+                <span class="text-sm text-gray-700">电力</span>
+                <span class="text-xs text-gray-400">+价格</span>
+              </li>
+              <li class="flex items-center justify-between py-1">
+                <span class="text-sm text-gray-700">创新药</span>
+                <span class="text-xs text-gray-400">热门题材</span>
+              </li>
+              <li class="flex items-center justify-between py-1">
+                <span class="text-sm text-gray-700">贵金属</span>
+                <span class="text-xs text-gray-400">避险资产</span>
+              </li>
+              <li class="flex items-center justify-between py-1">
+                <span class="text-sm text-gray-700">AI应用</span>
+                <span class="text-xs text-gray-400">科技主线</span>
+              </li>
+              <li class="flex items-center justify-between py-1">
+                <span class="text-sm text-gray-700">共封装光学</span>
+                <span class="text-xs text-gray-400">光通信</span>
+              </li>
+              <li class="flex items-center justify-between py-1">
+                <span class="text-sm text-gray-700">合成生物</span>
+                <span class="text-xs text-gray-400">新质生产力</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- 卡片 2：老股民都爱这么问 -->
+          <div class="bg-white rounded-xl border border-gray-100 shadow-card p-5 card-hover">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-bold text-gray-900">老股民都爱这么问</h3>
+            </div>
+            <div class="flex items-center gap-1 mb-4 bg-gray-50 rounded-lg p-1">
+              <button class="flex-1 px-3 py-1.5 text-xs font-semibold rounded-md bg-white text-brand-600 shadow-sm">技术面</button>
+              <button class="flex-1 px-3 py-1.5 text-xs font-medium rounded-md text-gray-500 hover:text-gray-700">资金面</button>
+              <button class="flex-1 px-3 py-1.5 text-xs font-medium rounded-md text-gray-500 hover:text-gray-700">基本面</button>
+            </div>
+            <ul class="space-y-2.5">
+              <li class="text-sm text-gray-700 hover:text-brand-600 cursor-pointer transition-colors">人气排名</li>
+              <li class="text-sm text-gray-700 hover:text-brand-600 cursor-pointer transition-colors">人气增速环比</li>
+              <li class="text-sm text-gray-700 hover:text-brand-600 cursor-pointer transition-colors">KDJ金叉</li>
+              <li class="text-sm text-gray-700 hover:text-brand-600 cursor-pointer transition-colors">MACD金叉的股票</li>
+              <li class="text-sm text-gray-700 hover:text-brand-600 cursor-pointer transition-colors">超跌股且W底</li>
+              <li class="text-sm text-gray-700 hover:text-brand-600 cursor-pointer transition-colors">放量突破且月线三连阳</li>
+              <li class="text-sm text-gray-700 hover:text-brand-600 cursor-pointer transition-colors">底部反转且底背离</li>
+              <li class="text-sm text-gray-700 hover:text-brand-600 cursor-pointer transition-colors">今日涨停，涨停原因，非ST</li>
+            </ul>
+          </div>
+
+          <!-- 卡片 3：未来大事 -->
+          <div class="bg-white rounded-xl border border-gray-100 shadow-card p-5 card-hover">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-bold text-gray-900">未来大事</h3>
+              <div class="flex items-center gap-2 text-xs text-gray-500">
+                <button class="w-5 h-5 rounded hover:bg-gray-100 flex items-center justify-center transition-colors">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M15 18l-6-6 6-6"/>
+                  </svg>
+                </button>
+                <span class="font-medium">1/6</span>
+                <button class="w-5 h-5 rounded hover:bg-gray-100 flex items-center justify-center transition-colors">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 18l6-6-6-6"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="event-swatch rounded-xl p-3 border border-brand-100">
+                <p class="text-sm font-semibold text-gray-900 mb-1">科创次新股</p>
+                <p class="text-xs text-gray-500">2026-08-10</p>
+              </div>
+              <div class="event-swatch rounded-xl p-3 border border-brand-100">
+                <p class="text-sm font-semibold text-gray-900 mb-1">存储芯片</p>
+                <p class="text-xs text-gray-500">2026-08-10</p>
+              </div>
+              <div class="event-swatch rounded-xl p-3 border border-brand-100">
+                <p class="text-sm font-semibold text-gray-900 mb-1">三胎概念</p>
+                <p class="text-xs text-gray-500">2026-08-10</p>
+              </div>
+              <div class="event-swatch rounded-xl p-3 border border-brand-100">
+                <p class="text-sm font-semibold text-gray-900 mb-1">可降解塑料</p>
+                <p class="text-xs text-gray-500">2026-08-10</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 卡片 4：特色榜单 -->
+          <div class="bg-white rounded-xl border border-gray-100 shadow-card p-5 card-hover">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-bold text-gray-900">特色榜单</h3>
+              <div class="flex items-center gap-2 text-xs text-gray-500">
+                <button class="w-5 h-5 rounded hover:bg-gray-100 flex items-center justify-center transition-colors">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M15 18l-6-6 6-6"/>
+                  </svg>
+                </button>
+                <span class="font-medium">1/2</span>
+                <button class="w-5 h-5 rounded hover:bg-gray-100 flex items-center justify-center transition-colors">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 18l6-6-6-6"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <ul class="space-y-3">
+              <li class="flex items-center justify-between p-3 rounded-xl bg-gray-50 hover:bg-brand-50 cursor-pointer transition-colors group">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-brand-500/10 text-brand-600 flex items-center justify-center">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="2" y="7" width="20" height="14" rx="2"/>
+                      <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+                    </svg>
+                  </div>
+                  <span class="text-sm font-medium text-gray-800 group-hover:text-brand-700">市值最大</span>
+                </div>
+                <svg class="w-4 h-4 text-gray-300 group-hover:text-brand-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 18l6-6-6-6"/>
+                </svg>
+              </li>
+              <li class="flex items-center justify-between p-3 rounded-xl bg-gray-50 hover:bg-brand-50 cursor-pointer transition-colors group">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-brand-500/10 text-brand-600 flex items-center justify-center">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="12" y1="20" x2="12" y2="10"/>
+                      <line x1="18" y1="20" x2="18" y2="4"/>
+                      <line x1="6" y1="20" x2="6" y2="16"/>
+                    </svg>
+                  </div>
+                  <span class="text-sm font-medium text-gray-800 group-hover:text-brand-700">营收最多</span>
+                </div>
+                <svg class="w-4 h-4 text-gray-300 group-hover:text-brand-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 18l6-6-6-6"/>
+                </svg>
+              </li>
+            </ul>
+          </div>
+
+          <!-- 卡片 5：经典策略 -->
+          <div class="bg-white rounded-xl border border-gray-100 shadow-card p-5 card-hover">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-bold text-gray-900">经典策略</h3>
+              <a href="#" class="text-xs text-gray-400 hover:text-brand-600 flex items-center gap-0.5 transition-colors">
+                更多
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 18l6-6-6-6"/>
+                </svg>
+              </a>
+            </div>
+            <ul class="space-y-3">
+              <li class="p-3 rounded-xl bg-gray-50 hover:bg-brand-50 cursor-pointer transition-colors group">
+                <div class="flex items-center gap-3 mb-1">
+                  <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center text-xs font-bold">
+                    主
+                  </div>
+                  <span class="text-sm font-semibold text-gray-800 group-hover:text-brand-700">主力盘底低吸战法</span>
+                </div>
+                <p class="text-xs text-gray-500 pl-11">跟随主力资金，低位潜伏布局</p>
+              </li>
+              <li class="p-3 rounded-xl bg-gray-50 hover:bg-brand-50 cursor-pointer transition-colors group">
+                <div class="flex items-center gap-3 mb-1">
+                  <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 text-white flex items-center justify-center text-xs font-bold">
+                    高
+                  </div>
+                  <span class="text-sm font-semibold text-gray-800 group-hover:text-brand-700">高现金高毛利战法</span>
+                </div>
+                <p class="text-xs text-gray-500 pl-11">优选现金流充裕、盈利能力强的标的</p>
+              </li>
+            </ul>
+          </div>
+
+          <!-- 卡片 6：大师策略 -->
+          <div class="bg-white rounded-xl border border-gray-100 shadow-card p-5 card-hover">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-bold text-gray-900">大师策略</h3>
+              <a href="#" class="text-xs text-gray-400 hover:text-brand-600 flex items-center gap-0.5 transition-colors">
+                更多
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 18l6-6-6-6"/>
+                </svg>
+              </a>
+            </div>
+            <div class="space-y-3">
+              <div class="flex items-center gap-3 p-3 rounded-xl bg-gray-50 hover:bg-brand-50 cursor-pointer transition-colors group">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-slate-600 to-slate-800 text-white flex items-center justify-center text-xs font-bold border-2 border-white shadow-sm">
+                  葛
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-semibold text-gray-800 group-hover:text-brand-700 truncate">葛卫东流通股东策略</p>
+                  <p class="text-xs text-gray-500">追踪知名私募持仓动向</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-3 p-3 rounded-xl bg-gray-50 hover:bg-brand-50 cursor-pointer transition-colors group">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center text-xs font-bold border-2 border-white shadow-sm">
+                  傅
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-semibold text-gray-800 group-hover:text-brand-700 truncate">傅鹏博重仓股策略</p>
+                  <p class="text-xs text-gray-500">参考公募顶流选股思路</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 底部占位 -->
+        <div class="h-10"></div>
+      </div>
+    </main>
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,4 @@
+interface:
+  display_name: "A股缺口策略"
+  short_description: "A股跳空缺口的类型识别和缺口回补交易策略"
+  default_prompt: "加载 A股缺口策略 技能包，参考 A股缺口策略.txt 中的价格行为交易知识进行当前分析。A股跳空缺口的类型识别和缺口回补交易策略"

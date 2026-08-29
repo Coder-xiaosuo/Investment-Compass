@@ -1,0 +1,215 @@
+%% =====================================================================
+%% Investment Compass - 架构总览图
+%% 本文件包含两张 Mermaid 图，以 --- 分隔：
+%%   图1：三层服务架构图（前端 / Java 后端 / Python 服务 / 基础设施层）
+%%   图2：核心数据流图（实时行情推送 / AI 对话编排 / 经验闭环 RAG）
+%% 渲染方式：Mermaid flowchart，支持 .mmd 多图分隔
+%% =====================================================================
+
+flowchart TB
+
+    %% ========== 样式定义 ==========
+    classDef front fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#0d47a1
+    classDef java fill:#fff3e0,stroke:#f57c00,stroke-width:2px,color:#e65100
+    classDef py fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#4a148c
+    classDef infra fill:#fff9c4,stroke:#f9a825,stroke-width:2px,color:#f57f17
+
+    %% ========== 前端层 ==========
+    subgraph Frontend["前端层 (React 19 + TypeScript + Vite 8 + TailwindCSS v4)"]
+        direction LR
+        ChatView["💬 ChatView<br/>AI对话"]
+        TechnicalDashboard["📊 TechnicalDashboard<br/>技术面"]
+        FundamentalDashboard["📈 FundamentalDashboard<br/>基本面"]
+        MarketDashboard["🌐 MarketDashboard<br/>市场概览"]
+        KlineChart["🕯️ KlineChart<br/>K线图"]
+        StyleQuizModal["🎯 StyleQuizModal<br/>风格画像"]
+        WatchlistPanel["⭐ WatchlistPanel<br/>自选股"]
+    end
+
+    %% ========== Java 后端 ==========
+    subgraph Java["Java 后端 (Spring Boot 3.5 + 端口 8879)"]
+        direction LR
+        StockController["🔌 StockController<br/>搜索/行情/K线/技术指标"]
+        WatchlistController["📌 WatchlistController<br/>自选股"]
+        MarketBoardController["📋 MarketBoardController<br/>指数/排名"]
+        MonitorController["👁️ MonitorController<br/>数据监控"]
+        WSQuote["🔌 WebSocket /ws/quote<br/>实时行情推送"]
+    end
+
+    %% ========== Python 服务 ==========
+    subgraph Python["Python 服务 (FastAPI + LangGraph + 端口 8002)"]
+        direction TB
+
+        subgraph PyAgent["Agent 编排层"]
+            direction LR
+            MainAgent["🧠 Main Agent<br/>LangGraph 编排"]
+            ValueAssessment["💰 Value Assessment<br/>价值评估"]
+            TechnicalAnalysis["📊 Technical Analysis<br/>技术分析"]
+            PAAgent["⚙️ PA Agent"]
+            Advisory["📰 Advisory<br/>资讯RAG"]
+            AIReader["🤖 AI Reader<br/>卡片解读"]
+        end
+
+        subgraph PyService["Services 层"]
+            direction LR
+            ChatService["💬 Chat Service"]
+            SyncService["🔄 Sync Service"]
+            ExperienceLibrary["📚 Experience Library<br/>Chroma RAG"]
+            StyleProfiler["🎯 Style Profiler"]
+            BacktestService["🔬 Backtest Service"]
+        end
+
+        PAStrategy["📦 33 PA Strategy Skills"]
+    end
+
+    %% ========== 基础设施层 ==========
+    subgraph Infra["基础设施层"]
+        direction LR
+        MySQL[("🗄️ MySQL 3306<br/>investment_compass 库<br/>20+ 表")]
+        Redis[("⚡ Redis 6379<br/>quotes Pub/Sub<br/>quote:{symbol} Hash")]
+        ChromaDB[("🧬 ChromaDB<br/>experience_library_zh<br/>bge-small-zh-v1.5")]
+        AkShare["🌐 AkShare API<br/>东财/新浪/财联社"]
+    end
+
+    %% ========== 前端 → Java ==========
+    ChatView -->|"REST /api/*"| StockController
+    KlineChart -->|"REST /api/*"| StockController
+    WatchlistPanel -->|"REST /api/*"| WatchlistController
+    MarketDashboard -->|"REST /api/*"| MarketBoardController
+    ChatView -->|"WebSocket /ws/quote"| WSQuote
+
+    %% ========== 前端 → Python ==========
+    ChatView -->|"REST /api/* + SSE 流式"| ChatService
+    StyleQuizModal -->|"REST /api/*"| StyleProfiler
+
+    %% ========== Java → MySQL ==========
+    StockController -->|"MyBatis-Flex"| MySQL
+    WatchlistController -->|"MyBatis-Flex"| MySQL
+    MarketBoardController -->|"MyBatis-Flex"| MySQL
+    MonitorController -->|"MyBatis-Flex"| MySQL
+
+    %% ========== Java → Redis ==========
+    WSQuote -->|"订阅 quotes 频道"| Redis
+
+    %% ========== Python → MySQL ==========
+    ChatService -->|"SQLAlchemy + aiomysql"| MySQL
+    SyncService -->|"SQLAlchemy + aiomysql"| MySQL
+    BacktestService -->|"SQLAlchemy + aiomysql"| MySQL
+
+    %% ========== Python → Redis ==========
+    SyncService -->|"发布 quotes 频道"| Redis
+
+    %% ========== Python → ChromaDB ==========
+    ExperienceLibrary -->|"向量检索"| ChromaDB
+
+    %% ========== Python → AkShare ==========
+    SyncService -->|"数据采集"| AkShare
+
+    %% ========== Python 内部编排 ==========
+    ChatService --> MainAgent
+    MainAgent --> ValueAssessment
+    MainAgent --> TechnicalAnalysis
+    MainAgent --> Advisory
+    MainAgent --> AIReader
+    TechnicalAnalysis --> PAAgent
+    PAAgent --> PAStrategy
+
+    %% ========== 样式应用 ==========
+    class ChatView,TechnicalDashboard,FundamentalDashboard,MarketDashboard,KlineChart,StyleQuizModal,WatchlistPanel front
+    class StockController,WatchlistController,MarketBoardController,MonitorController,WSQuote java
+    class MainAgent,ValueAssessment,TechnicalAnalysis,PAAgent,Advisory,AIReader,ChatService,SyncService,ExperienceLibrary,StyleProfiler,BacktestService,PAStrategy py
+    class MySQL,Redis,ChromaDB,AkShare infra
+
+---
+
+flowchart TB
+
+    %% ========== 样式定义 ==========
+    classDef flow1 fill:#e1f5fe,stroke:#0288d1,stroke-width:2px,color:#01579b
+    classDef flow2 fill:#fce4ec,stroke:#c2185b,stroke-width:2px,color:#880e4f
+    classDef flow3 fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#1b5e20
+    classDef store fill:#fff9c4,stroke:#f9a825,stroke-width:2px,color:#f57f17
+
+    %% ========== 数据流1：实时行情推送 ==========
+    subgraph F1["数据流1：实时行情推送"]
+        direction LR
+        Q1["🐍 quote_publisher<br/>AkShare spot 行情<br/>3s 间隔"]
+        Q2[("⚡ Redis<br/>Hash quote:{symbol}<br/>+ Pub/Sub quotes 频道")]
+        Q3["☕ QuoteRedisSubscriber<br/>订阅 quotes 频道"]
+        Q4["☕ QuoteWebSocketSessionManager<br/>管理 WS 会话"]
+        Q5["💬 前端<br/>WebSocket /ws/quote"]
+
+        Q1 -->|"写入 Hash + 发布频道"| Q2
+        Q2 -->|"Pub/Sub 推送"| Q3
+        Q3 -->|"分发会话"| Q4
+        Q4 -->|"WebSocket 推送"| Q5
+    end
+
+    %% ========== 数据流2：AI 对话编排 ==========
+    subgraph F2["数据流2：AI 对话编排"]
+        direction TB
+        C1["💬 前端 ChatView"]
+        C2["🐍 chat_service<br/>POST /api/chat/conversation/{id}/message/stream (SSE)"]
+        C3["🧠 Main Agent 编排"]
+
+        subgraph F2S1["Stage 1：价值评估"]
+            direction LR
+            S1A["Value Assessment Agent"]
+            S1B["gates 门控"]
+            S1C["scorer 五维度评分"]
+            S1D["LLM 定性重评"]
+            S1A --> S1B --> S1C --> S1D
+        end
+
+        C4{"⏸️ HITL 中断<br/>用户决策"}
+        C5["POST /api/chat/{id}/resume<br/>续流"]
+
+        subgraph F2S2["Stage 2：技术分析 (LangGraph 7 节点)"]
+            direction LR
+            S2A["parse"] --> S2B["features"] --> S2C["stage1_diagnosis"] --> S2D["load_strategies"] --> S2E["inject_experience"] --> S2F["pa_node"] --> S2G["merge"]
+        end
+
+        CDB[("🧬 ChromaDB<br/>历史案例")]
+        C6["汇总输出 → DecisionCard"]
+        C7["💬 前端展示"]
+
+        C1 -->|"SSE"| C2
+        C2 --> C3
+        C3 --> S1A
+        S1D --> C4
+        C4 -->|"approve/reject/respond"| C5
+        C5 --> S2A
+        S2E -.->|"经验注入<br/>检索历史案例"| CDB
+        S2G --> C6
+        C6 --> C7
+    end
+
+    %% ========== 数据流3：经验闭环 RAG ==========
+    subgraph F3["数据流3：经验闭环 RAG"]
+        direction TB
+
+        subgraph F3W["写侧 (复盘提升)"]
+            direction LR
+            W1[("🗄️ decision_cards 表<br/>决策落库")]
+            W2["🔄 experience_loop_service<br/>复盘 10 日窗口<br/>计算 HIT/MISS"]
+            W3["回填 review_outcome"]
+            W4[("🧬 ChromaDB<br/>提升经验")]
+            W1 --> W2 --> W3 --> W4
+        end
+
+        subgraph F3R["读侧 (经验注入)"]
+            direction LR
+            R1["inject_experience<br/>ChromaDB 三层检索"]
+            R2["结构化过滤<br/>+ 语义排序<br/>+ 时间衰减<br/>+ 复盘验证权重"]
+            R3["注入 PA Agent prompt"]
+            R1 --> R2 --> R3
+        end
+
+        W4 -.->|"经验库共享"| R1
+    end
+
+    %% ========== 样式应用 ==========
+    class Q1,Q2,Q3,Q4,Q5 flow1
+    class C1,C2,C3,C4,C5,C6,C7,S1A,S1B,S1C,S1D,S2A,S2B,S2C,S2D,S2E,S2F,S2G flow2
+    class CDB store
+    class W1,W2,W3,W4,R1,R2,R3 flow3

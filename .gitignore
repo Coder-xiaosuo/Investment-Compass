@@ -1,0 +1,59 @@
+
+
+HELP.md
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+### 密钥 / 本地配置（开源前强制忽略）###
+.env
+.env.*
+!**/.env.example
+config/settings.json
+config/settings.local.json
+feishu_auth_qr.png
+
+### 运行时数据 / 日志 / 缓存（勿入库）###
+logs/
+*.log
+dump.rdb
+chroma_db/
+
+### OS ###
+.DS_Store
+
+### 外部子项目：PA_Agent（本地嵌套仓库，仅供开发，勿提交）###
+PA_Agent/
+
+### 内部规划文档 / 个人笔记（不公开）###
+.trae/
+简历项目模块_InvestmentCompass.md

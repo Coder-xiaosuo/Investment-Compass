@@ -1,0 +1,31 @@
+# 运行时生成的中间/存档数据（相对 python-service 路径）
+data/reports/
+data/workspace/
+# 兼容旧路径（迁移前的卸载目录）
+data/large_tool_results/
+data/conversation_history/
+config/.config.key
+config/settings.local.json
+# 明文迁移/回滚备份：含敏感字段，禁止入库
+config/*.bak
+config/*.bak.*
+config/backup*
+config/*.backup.json
+# 环境变量文件：可能含敏感凭据，禁止入库（使用 .env.example 作为模板）
+.env
+.env.local
+.env.*.local
+
+# 本地真实配置：含加密后的 API Key / 飞书凭据，禁止入库
+config/settings.json
+
+# 用户偏好记忆（含个人隐私），仅存本地
+memories/
+
+# 回测产物 / 向量经验库（运行时数据）
+out/
+data/experience_library/
+
+# Python 构建产物
+__pycache__/
+*.py[cod]

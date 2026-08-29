@@ -1,0 +1,4 @@
+interface:
+  display_name: "二次入场机会"
+  short_description: "二次入场（Second Entry）模式的识别与交易方案"
+  default_prompt: "加载 二次入场机会 技能包，参考 文件15-二次入场机会.txt 中的价格行为交易知识进行当前分析。二次入场（Second Entry）模式的识别与交易方案"

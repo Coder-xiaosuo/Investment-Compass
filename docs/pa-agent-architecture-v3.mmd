@@ -1,0 +1,118 @@
+graph TB
+    %% ========== 样式 ==========
+    classDef user fill:#f5f5f5,stroke:#424242,stroke-width:2px,color:#212121
+    classDef input fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#0d47a1
+    classDef orch fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#e65100
+    classDef compute fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#1b5e20
+    classDef ai fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#4a148c
+    classDef know fill:#b2dfdb,stroke:#00897b,stroke-width:2px,color:#004d40
+    classDef store fill:#fff9c4,stroke:#f9a825,stroke-width:2px,color:#f57f17
+    classDef note fill:#fffde7,stroke:#fbc02d,stroke-width:1px,color:#5d4037
+
+    %% ========== 用户 ==========
+    USER(["👤 用户"])
+
+    %% ========== 上层 ==========
+    subgraph L1["上层 - 输入层"]
+        direction LR
+        INPUT["«component»<br/>输入解析器<br/>InputParser"]
+        N1["📋 接收KlineFrame<br/>提取symbol/timeframe<br/>校验数据完整性"]
+    end
+
+    %% ========== 中层 ==========
+    subgraph L2["中层 - 编排层"]
+        direction LR
+        ORCH["«orchestrator»<br/>双阶段编排器<br/>TwoStageOrchestrator"]
+        CANCEL["«token»<br/>取消令牌<br/>CancelToken"]
+        N2["📋 协调Stage1→Stage2 Pipeline<br/>每步检查CancelToken<br/>捕获异常记录partial record"]
+    end
+
+    %% ========== 下层 ==========
+    subgraph L3["下层 - 执行层（子模块）"]
+        direction LR
+
+        %% 预计算
+        subgraph L3A["预计算子系统"]
+            direction TB
+            KLINE["«agent»<br/>K线几何特征<br/>KlineFeatures"]
+            MARKET["«agent»<br/>市场结构特征<br/>MarketFeatures"]
+            N3A["📋 bar_type/body_ratio<br/>swing_structure/hl_count"]
+        end
+
+        %% AI推理
+        subgraph L3B["AI推理子系统"]
+            direction TB
+            PROMPT["«agent»<br/>Prompt组装器<br/>PromptAssembler"]
+            CLIENT["«agent»<br/>DeepSeek客户端<br/>DeepSeekClient"]
+            VALIDATOR["«agent»<br/>JSON校验器<br/>JsonValidator"]
+            RETRY["«agent»<br/>重试控制器<br/>ValidationRetry"]
+            N3B["📋 5类错误校验<br/>Schema验证<br/>交叉字段一致性"]
+        end
+
+        %% 知识库
+        subgraph L3C["知识子系统"]
+            direction TB
+            FRAME["«file»<br/>市场诊断框架"]
+            TREE["«file»<br/>二元决策树"]
+            ROLE["«file»<br/>人设与思维方式"]
+            STRATEGY["«files»<br/>策略文件库<br/>28+ files"]
+        end
+    end
+
+    %% ========== 存储 ==========
+    subgraph STORAGE["外部存储"]
+        direction TB
+        RECORD[("📦 分析记录库<br/>AnalysisRecord")]
+        EXPERIENCE[("📚 经验数据库<br/>ExperienceData")]
+    end
+
+    %% ========== 数据流 ==========
+    USER -->|"KlineFrame"| INPUT
+    INPUT -->|"解析后数据"| ORCH
+
+    ORCH -->|"调用预计算"| KLINE
+    KLINE -->|"几何特征"| MARKET
+    MARKET -->|"结构特征"| PROMPT
+
+    ORCH -->|"加载规则"| FRAME
+    ORCH -->|"加载规则"| TREE
+    ORCH -->|"加载人设"| ROLE
+    FRAME -->|"诊断规则"| PROMPT
+    TREE -->|"决策路径"| PROMPT
+    ROLE -->|"人设约束"| PROMPT
+
+    ORCH -->|"Stage1/Stage2"| CLIENT
+    PROMPT -->|"完整Prompt"| CLIENT
+    CLIENT -->|"AI响应"| VALIDATOR
+    VALIDATOR -->|"失败"| RETRY
+    RETRY -->|"反馈重试"| CLIENT
+    VALIDATOR -->|"通过"| ORCH
+
+    ORCH -->|"路由策略<br/>cycle_position"| STRATEGY
+    STRATEGY -->|"策略内容"| PROMPT
+
+    ORCH -->|"加载经验"| EXPERIENCE
+    EXPERIENCE -->|"历史经验"| PROMPT
+
+    ORCH -->|"持久化"| RECORD
+    RECORD -.->|"读写缓存"| EXPERIENCE
+
+    CANCEL -.->|"取消检查"| ORCH
+
+    %% ========== 样式应用 ==========
+    class USER user
+    class INPUT input
+    class ORCH orch
+    class KLINE compute
+    class MARKET compute
+    class PROMPT ai
+    class CLIENT ai
+    class VALIDATOR ai
+    class RETRY ai
+    class FRAME know
+    class TREE know
+    class ROLE know
+    class STRATEGY know
+    class RECORD store
+    class EXPERIENCE store
+    class N1,N2,N3A,N3B note

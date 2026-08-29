@@ -1,0 +1,44 @@
+# FinAgentOS 依赖
+# pip install -r requirements.txt
+
+# === AI 框架 ===
+langchain>=0.3.0
+langchain-deepseek
+langchain-community
+
+# === API 服务 ===
+fastapi>=0.115.0
+uvicorn[standard]
+pydantic>=2.0
+python-dotenv
+
+# === 数据库 ===
+sqlalchemy>=2.0
+alembic
+asyncmy          # MySQL async driver
+aiosqlite        # SQLite async driver (dev)
+asyncpg          # PostgreSQL async driver (production)
+
+# === 数据获取 ===
+akshare>=1.16
+pandas
+pyarrow          # Parquet storage
+
+# === 技术指标 ===
+ta-lib>=0.6
+
+# === 认证 ===
+pyjwt>=2.0
+passlib[bcrypt]
+
+# === 可视化 (Streamlit) ===
+streamlit>=1.40
+plotly>=5.20
+
+# === 向量数据库 ===
+chromadb>=0.6
+
+# === 工具 ===
+httpx>=0.28
+httpx-sse
+sse-starlette

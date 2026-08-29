@@ -1,0 +1,126 @@
+graph TB
+    %% ========== 样式定义 ==========
+    classDef actorStyle fill:#f5f5f5,stroke:#333,stroke-width:1.5px,color:#333
+    classDef inputStyle fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#1565c0
+    classDef computeStyle fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#2e7d32
+    classDef aiStyle fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#6a1b9a
+    classDef orchStyle fill:#fff3e0,stroke:#f57c00,stroke-width:2px,color:#e65100
+    classDef knowledgeStyle fill:#e0f7fa,stroke:#00838f,stroke-width:2px,color:#006064
+    classDef storageStyle fill:#fff8e1,stroke:#f9a825,stroke-width:2px,color:#f57f17,shape:cylinder
+    classDef noteStyle fill:#fffde7,stroke:#f9a825,stroke-width:1px,color:#5d4037,stroke-dasharray: 3 3
+    classDef packageStyle fill:none,stroke:#90a4ae,stroke-width:1.5px,stroke-dasharray: 5 5
+
+    %% ========== 用户 ==========
+    USER(["👤 用户<br/>或调度器"])
+
+    %% ========== 上层 - 输入层 ==========
+    subgraph L1["上层 - 输入层"]
+        direction TB
+        INPUT["«component»<br/>输入解析器<br/>InputParser"]
+        NOTE_INPUT["📋 职责<br/>接收KlineFrame<br/>提取symbol/timeframe<br/>校验数据完整性"]
+    end
+
+    %% ========== 中层 - 编排层 ==========
+    subgraph L2["中层 - 编排层"]
+        direction TB
+        ORCH["«orchestrator»<br/>双阶段编排器<br/>TwoStageOrchestrator"]
+        CANCEL["«token»<br/>取消令牌<br/>CancelToken"]
+        NOTE_ORCH["📋 职责<br/>协调Stage1→Stage2完整Pipeline<br/>每步检查CancelToken<br/>捕获异常记录partial record"]
+    end
+
+    %% ========== 下层 - 执行层（子模块） ==========
+    subgraph L3["下层 - 执行层（子模块）"]
+        direction LR
+
+        subgraph PRE["预计算子系统"]
+            direction TB
+            KLINE["«agent»<br/>K线几何特征<br/>KlineFeatures"]
+            MARKET["«agent»<br/>市场结构特征<br/>MarketFeatures"]
+        end
+
+        subgraph AI["AI推理子系统"]
+            direction TB
+            PROMPT["«agent»<br/>Prompt组装器<br/>PromptAssembler"]
+            CLIENT["«agent»<br/>DeepSeek客户端<br/>DeepSeekClient"]
+            VALIDATOR["«agent»<br/>JSON校验器<br/>JsonValidator"]
+            RETRY["«agent»<br/>重试控制器<br/>ValidationRetry"]
+        end
+
+        subgraph AUX["辅助子系统"]
+            direction TB
+            TOKEN["«agent»<br/>Token计数器<br/>TokenCounter"]
+            EXTRACT["«agent»<br/>响应提取器<br/>ResponseExtract"]
+            STANCE["«agent»<br/>决策姿态<br/>DecisionStance"]
+        end
+
+        subgraph KNOW["知识子系统"]
+            direction TB
+            FRAME["«file»<br/>市场诊断框架<br/>市场诊断框架.txt"]
+            TREE["«file»<br/>二元决策树<br/>二元决策.txt"]
+            STRATEGY["«files»<br/>策略文件库<br/>28+策略文件"]
+            ROLE["«file»<br/>人设与思维<br/>人设与思维方式.txt"]
+        end
+    end
+
+    %% ========== 外部存储 ==========
+    subgraph STORAGE["外部存储"]
+        direction TB
+        RECORD[("📦 分析记录库<br/>AnalysisRecord")]
+        EXPERIENCE[("📚 经验数据库<br/>ExperienceData")]
+    end
+
+    NOTE_MODULE["📋 各子模块独立执行<br/>K线几何 → bar_type/body_ratio/inside_sequence等<br/>市场结构 → swing_structure/hl_count/breakout_events等<br/>Prompt组装 → 规则+特征+模板动态拼接<br/>DeepSeek → OpenAI SDK多网关切换<br/>JSON校验 → 5类错误+Schema+交叉字段"]
+
+    %% ========== 数据流 ==========
+    USER -->|"自然语言指令<br/>或KlineFrame"| INPUT
+    INPUT -->|"KlineFrame + symbol"| ORCH
+
+    ORCH -->|"调用预计算"| PRE
+    KLINE -->|"几何特征表"| MARKET
+    MARKET -->|"结构特征表"| PROMPT
+
+    ORCH -->|"加载规则文件"| KNOW
+    FRAME -->|"诊断规则"| PROMPT
+    TREE -->|"决策路径"| PROMPT
+    ROLE -->|"人设约束"| PROMPT
+    STRATEGY -->|"策略内容<br/>(Stage2路由后)"| PROMPT
+
+    ORCH -->|"Stage1/Stage2<br/>调用AI"| AI
+    PROMPT -->|"组装完整Prompt"| CLIENT
+    CLIENT -->|"原始AI响应"| EXTRACT
+    EXTRACT -->|"提取content"| VALIDATOR
+    VALIDATOR -->|"校验失败"| RETRY
+    RETRY -->|"反馈+重试"| CLIENT
+    VALIDATOR -->|"校验通过"| ORCH
+
+    TOKEN -.->|"估算token用量"| PROMPT
+    STANCE -.->|"决策姿态配置"| ORCH
+
+    ORCH -->|"Stage2路由<br/>cycle_position+direction"| STRATEGY
+    ORCH -->|"加载经验数据"| EXPERIENCE
+    EXPERIENCE -->|"历史经验注入<br/>Stage2 Prompt"| PROMPT
+
+    ORCH -->|"持久化完整记录"| RECORD
+    RECORD -->|"读写行情缓存"| EXPERIENCE
+
+    %% ========== 样式应用 ==========
+    class USER actorStyle
+    class INPUT inputStyle
+    class ORCH orchStyle
+    class CANCEL orchStyle
+    class KLINE computeStyle
+    class MARKET computeStyle
+    class PROMPT aiStyle
+    class CLIENT aiStyle
+    class VALIDATOR aiStyle
+    class RETRY aiStyle
+    class TOKEN auxStyle
+    class EXTRACT auxStyle
+    class STANCE auxStyle
+    class FRAME knowledgeStyle
+    class TREE knowledgeStyle
+    class STRATEGY knowledgeStyle
+    class ROLE knowledgeStyle
+    class RECORD storageStyle
+    class EXPERIENCE storageStyle
+    class NOTE_INPUT,NOTE_ORCH,NOTE_MODULE noteStyle

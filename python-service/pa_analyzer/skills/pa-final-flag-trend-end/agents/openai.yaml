@@ -1,0 +1,4 @@
+interface:
+  display_name: "最终旗形与趋势末端"
+  short_description: "最终旗形（Final Flag）识别和趋势末端特征判断"
+  default_prompt: "加载 最终旗形与趋势末端 技能包，参考 文件24-最终旗形与趋势末端.txt 中的价格行为交易知识进行当前分析。最终旗形（Final Flag）识别和趋势末端特征判断"

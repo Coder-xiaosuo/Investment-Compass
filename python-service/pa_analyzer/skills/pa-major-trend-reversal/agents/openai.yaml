@@ -1,0 +1,4 @@
+interface:
+  display_name: "主要趋势反转MTR"
+  short_description: "主要趋势反转（Major Trend Reversal）识别与诊断规则"
+  default_prompt: "加载 主要趋势反转MTR 技能包，参考 文件25-主要趋势反转MTR.txt 中的价格行为交易知识进行当前分析。主要趋势反转（Major Trend Reversal）识别与诊断规则"

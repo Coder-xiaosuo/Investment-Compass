@@ -1,0 +1,4 @@
+interface:
+  display_name: "A股板块联动"
+  short_description: "A股板块/概念/龙头跟风联动效应分析方法"
+  default_prompt: "加载 A股板块联动 技能包，参考 A股板块联动.txt 中的价格行为交易知识进行当前分析。A股板块/概念/龙头跟风联动效应分析方法"

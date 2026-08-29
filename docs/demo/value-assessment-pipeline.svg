@@ -1,0 +1,213 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 760" width="100%" height="auto" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif">
+  <defs>
+    <marker id="va-arrow-blue" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M1 1 L7 4 L1 7 Z" fill="#22A5F7"/>
+    </marker>
+    <marker id="va-arrow-orange" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M1 1 L7 4 L1 7 Z" fill="#F57C00"/>
+    </marker>
+    <marker id="va-arrow-purple" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M1 1 L7 4 L1 7 Z" fill="#4B3FE3"/>
+    </marker>
+    <marker id="va-arrow-green" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M1 1 L7 4 L1 7 Z" fill="#1DC981"/>
+    </marker>
+    <marker id="va-arrow-red" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M1 1 L7 4 L1 7 Z" fill="#D93025"/>
+    </marker>
+  </defs>
+
+  <style>
+    .layer-title { font-size: 14px; font-weight: 700; fill: #171717; }
+    .node-title { font-size: 12px; font-weight: 600; fill: #171717; }
+    .node-sub { font-size: 10px; fill: #52525B; }
+    .node-detail { font-size: 9px; fill: #71717A; }
+    .conn-label { font-size: 9px; fill: #52525B; }
+    .badge { font-size: 9px; font-weight: 600; }
+    .container-title { font-size: 12px; font-weight: 700; fill: #171717; }
+    .row-text { font-size: 10px; fill: #171717; }
+    .mono { font-family: 'SF Mono', 'Menlo', 'Consolas', monospace; }
+  </style>
+
+  <rect x="0" y="0" width="960" height="760" fill="#F7F7F8" rx="12"/>
+
+  <!-- ========== Stage 0: 数据采集层 ========== -->
+  <rect x="12" y="16" width="936" height="144" rx="12" fill="#E3F2FD" opacity="0.5"/>
+  <text x="32" y="40" class="layer-title">📊 数据采集层</text>
+  <text x="148" y="40" class="node-detail">data collection · 并行拉取</text>
+
+  <!-- Node 1: financial_data_service -->
+  <g>
+    <rect x="40" y="52" width="270" height="88" rx="8" fill="#FFFFFF" stroke="#22A5F7" stroke-width="1.2"/>
+    <text x="52" y="70" class="node-title">financial_data_service</text>
+    <text x="52" y="86" class="node-sub mono">get_financial_abstract()</text>
+    <text x="52" y="102" class="node-detail">ROE / 毛利率 / 净利率 / 增速 / 负债率</text>
+    <rect x="52" y="112" width="46" height="16" rx="4" fill="#E3F2FD"/>
+    <text x="75" y="123" text-anchor="middle" class="badge" fill="#0D47A1">财务</text>
+  </g>
+
+  <!-- Node 2: valuation_service -->
+  <g>
+    <rect x="345" y="52" width="270" height="88" rx="8" fill="#FFFFFF" stroke="#22A5F7" stroke-width="1.2"/>
+    <text x="357" y="70" class="node-title">valuation_service</text>
+    <text x="357" y="86" class="node-sub mono">get_valuation()</text>
+    <text x="357" y="102" class="node-detail">PE-TTM / PB / 收盘价 / 市值</text>
+    <text x="357" y="116" class="node-detail">新浪 / 东财源回退</text>
+    <rect x="357" y="122" width="46" height="16" rx="4" fill="#E3F2FD"/>
+    <text x="380" y="133" text-anchor="middle" class="badge" fill="#0D47A1">估值</text>
+  </g>
+
+  <!-- Node 3: industry_service -->
+  <g>
+    <rect x="650" y="52" width="270" height="88" rx="8" fill="#FFFFFF" stroke="#22A5F7" stroke-width="1.2"/>
+    <text x="662" y="70" class="node-title">industry_service</text>
+    <text x="662" y="86" class="node-sub mono">get_industry()</text>
+    <text x="662" y="102" class="node-detail">L2 粗分类 · 行业调整依据</text>
+    <rect x="662" y="112" width="46" height="16" rx="4" fill="#E3F2FD"/>
+    <text x="685" y="123" text-anchor="middle" class="badge" fill="#0D47A1">行业</text>
+  </g>
+
+  <!-- Arrows converging to combined dict pill -->
+  <path d="M 175 140 L 175 154 L 420 154" stroke="#22A5F7" stroke-width="1.4" fill="none"/>
+  <path d="M 480 140 L 480 146" stroke="#22A5F7" stroke-width="1.4" fill="none"/>
+  <path d="M 785 140 L 785 154 L 540 154" stroke="#22A5F7" stroke-width="1.4" fill="none"/>
+
+  <!-- combined dict merge pill -->
+  <rect x="420" y="146" width="120" height="16" rx="8" fill="#22A5F7"/>
+  <text x="480" y="158" text-anchor="middle" class="badge" fill="#FFFFFF">combined dict</text>
+
+  <!-- Stem + split to gates & scorer -->
+  <path d="M 480 162 L 480 200" stroke="#22A5F7" stroke-width="1.4" fill="none"/>
+  <path d="M 480 200 L 240 200 L 240 208" stroke="#22A5F7" stroke-width="1.6" fill="none" marker-end="url(#va-arrow-blue)"/>
+  <path d="M 480 200 L 700 200 L 700 208" stroke="#22A5F7" stroke-width="1.6" fill="none" marker-end="url(#va-arrow-blue)"/>
+
+  <!-- ========== Stage 1: 规则层 ========== -->
+  <rect x="12" y="176" width="936" height="264" rx="12" fill="#FFF3E0" opacity="0.5"/>
+  <text x="32" y="198" class="layer-title">⚙️ 规则层（确定性）— Rule Engine</text>
+  <text x="260" y="198" class="node-detail">deterministic screening · 不依赖 LLM</text>
+
+  <!-- Left container: 4 gates -->
+  <rect x="40" y="208" width="400" height="216" rx="10" fill="#FFFFFF" stroke="#F57C00" stroke-width="1.4" stroke-dasharray="5 3"/>
+  <text x="52" y="226" class="container-title">🚫 4 门控拦截 (hard block)</text>
+  <text x="428" y="226" text-anchor="end" class="node-detail mono">gates.check_gates()</text>
+
+  <!-- Gate rows -->
+  <g>
+    <rect x="52" y="234" width="376" height="26" rx="4" fill="#FFF3E0" opacity="0.75"/>
+    <text x="60" y="251" class="row-text"><tspan font-weight="700" fill="#D93025">G1</tspan>  财务数据缺失 <tspan fill="#D93025" font-weight="600">→ block</tspan></text>
+  </g>
+  <g>
+    <rect x="52" y="262" width="376" height="26" rx="4" fill="#FFF3E0" opacity="0.75"/>
+    <text x="60" y="279" class="row-text"><tspan font-weight="700" fill="#D93025">G2</tspan>  ST/*ST 或 ROE 缺失 <tspan fill="#D93025" font-weight="600">→ block</tspan></text>
+  </g>
+  <g>
+    <rect x="52" y="290" width="376" height="26" rx="4" fill="#FFF3E0" opacity="0.75"/>
+    <text x="60" y="307" class="row-text"><tspan font-weight="700" fill="#D93025">G3</tspan>  ROE &lt; 0 <tspan fill="#D93025" font-weight="600">→ block: 盈利能力不足</tspan></text>
+  </g>
+  <g>
+    <rect x="52" y="318" width="376" height="26" rx="4" fill="#FFF3E0" opacity="0.75"/>
+    <text x="60" y="335" class="row-text"><tspan font-weight="700" fill="#D93025">G4</tspan>  资产负债率 &gt; 90% <tspan fill="#D93025" font-weight="600">→ block: 财务风险过高</tspan></text>
+  </g>
+
+  <!-- Warnings -->
+  <text x="52" y="362" class="node-sub" fill="#B26A00">⚠️ 非阻塞 warnings:</text>
+  <text x="52" y="374" class="node-detail">数据不完整 · 营收利润双降 · 负债率&gt;70%</text>
+
+  <!-- blocked? diamond -->
+  <polygon points="240,384 296,400 240,416 184,400" fill="#FFFFFF" stroke="#D93025" stroke-width="1.4"/>
+  <text x="240" y="403" text-anchor="middle" class="badge" fill="#D93025">blocked?</text>
+  <text x="252" y="430" class="conn-label" fill="#D93025" font-weight="600">yes</text>
+
+  <!-- Right container: 5 dimensions -->
+  <rect x="460" y="208" width="480" height="216" rx="10" fill="#FFFFFF" stroke="#F57C00" stroke-width="1.4" stroke-dasharray="5 3"/>
+  <text x="472" y="226" class="container-title">📐 5 维度加权评分</text>
+  <text x="928" y="226" text-anchor="end" class="node-detail mono">scorer.score()</text>
+
+  <!-- Dimension rows -->
+  <g>
+    <rect x="472" y="234" width="456" height="24" rx="4" fill="#FFF3E0" opacity="0.65"/>
+    <text x="480" y="250" class="row-text"><tspan font-weight="700">1. 盈利能力</tspan> <tspan fill="#F57C00" font-weight="700">30%</tspan></text>
+    <text x="588" y="250" class="node-detail">ROE(0.4) + 毛利率(0.3) + 净利率(0.3)</text>
+  </g>
+  <g>
+    <rect x="472" y="260" width="456" height="24" rx="4" fill="#FFF3E0" opacity="0.65"/>
+    <text x="480" y="276" class="row-text"><tspan font-weight="700">2. 成长性</tspan> <tspan fill="#F57C00" font-weight="700">25%</tspan></text>
+    <text x="588" y="276" class="node-detail">营收增速(0.5) + 利润增速(0.5)</text>
+  </g>
+  <g>
+    <rect x="472" y="286" width="456" height="24" rx="4" fill="#FFF3E0" opacity="0.65"/>
+    <text x="480" y="302" class="row-text"><tspan font-weight="700">3. 估值</tspan> <tspan fill="#F57C00" font-weight="700">20%</tspan></text>
+    <text x="588" y="302" class="node-detail">PE + PB 均值 (缺失兜底: 权重转移盈利)</text>
+  </g>
+  <g>
+    <rect x="472" y="312" width="456" height="24" rx="4" fill="#FFF3E0" opacity="0.65"/>
+    <text x="480" y="328" class="row-text"><tspan font-weight="700">4. 财务健康</tspan> <tspan fill="#F57C00" font-weight="700">15%</tspan></text>
+    <text x="588" y="328" class="node-detail">负债率(0.6) + 流动比率(0.4)</text>
+  </g>
+  <g>
+    <rect x="472" y="338" width="456" height="24" rx="4" fill="#FFF3E0" opacity="0.65"/>
+    <text x="480" y="354" class="row-text"><tspan font-weight="700">5. 收益质量</tspan> <tspan fill="#F57C00" font-weight="700">10%</tspan></text>
+    <text x="588" y="354" class="node-detail">经营现金流 / 净利润</text>
+  </g>
+
+  <!-- Industry adjustment + level mapping -->
+  <text x="472" y="384" class="node-sub" fill="#B26A00">🔄 行业调整:</text>
+  <text x="472" y="396" class="node-detail">消费/医药/科技/金融/周期 5类 L2 粗分类模糊匹配 → 权重归一化</text>
+  <text x="472" y="414" class="node-sub" fill="#B26A00">🏷️ 等级映射: <tspan class="node-detail" fill="#71717A">≥80 优质 / ≥60 良好 / ≥40 一般 / &lt;40 差</tspan></text>
+
+  <!-- ========== Stage 2: LLM 层 ========== -->
+  <rect x="12" y="456" width="936" height="144" rx="12" fill="#F3E5F5" opacity="0.5"/>
+  <text x="32" y="478" class="layer-title">🧠 LLM 定性重评层</text>
+  <text x="170" y="478" class="node-detail">qualitative review · 不调分，只做判断</text>
+
+  <!-- LLM large node -->
+  <rect x="40" y="488" width="880" height="106" rx="10" fill="#FFFFFF" stroke="#4B3FE3" stroke-width="1.4"/>
+  <text x="52" y="506" class="container-title" fill="#4B3FE3">LLM 定性分析（不调分，只做判断）</text>
+  <text x="908" y="506" text-anchor="end" class="node-detail mono">llm.qualitative_review()</text>
+
+  <!-- Divider lines for 3 columns -->
+  <line x1="320" y1="514" x2="320" y2="588" stroke="#4B3FE3" stroke-width="0.6" stroke-dasharray="2 2" opacity="0.45"/>
+  <line x1="620" y1="514" x2="620" y2="588" stroke="#4B3FE3" stroke-width="0.6" stroke-dasharray="2 2" opacity="0.45"/>
+
+  <!-- Column 1: Left - 输入分析 -->
+  <text x="52" y="528" class="node-sub" fill="#4B3FE3" font-weight="700">输入分析</text>
+  <text x="52" y="546" class="row-text">· 数据质量判断</text>
+  <text x="52" y="562" class="row-text">· 跨维度矛盾发现</text>
+  <text x="52" y="578" class="row-text">· 行业上下文补充</text>
+
+  <!-- Column 2: Center - 评分策略 -->
+  <text x="332" y="528" class="node-sub" fill="#4B3FE3" font-weight="700">评分策略</text>
+  <text x="332" y="546" class="row-text mono">final_score = rule_score</text>
+  <text x="332" y="560" class="node-detail">（直接取用，不调分）</text>
+  <text x="332" y="578" class="row-text">recommend = score≥60 或健康</text>
+  <text x="332" y="590" class="node-detail">→ true</text>
+
+  <!-- Column 3: Right - 输出 -->
+  <text x="632" y="528" class="node-sub" fill="#4B3FE3" font-weight="700">ValuationResult 输出</text>
+  <text x="632" y="546" class="row-text">· score / level</text>
+  <text x="632" y="562" class="row-text">· recommend / blocked</text>
+  <text x="632" y="578" class="row-text">· reason / summary / warnings</text>
+
+  <!-- ========== Output ========== -->
+  <rect x="40" y="620" width="880" height="72" rx="10" fill="#E8F5E9" stroke="#1DC981" stroke-width="1.4"/>
+  <text x="52" y="640" class="container-title" fill="#0B6E3F">📦 ValuationResult</text>
+  <text x="908" y="640" text-anchor="end" class="node-detail mono">schema</text>
+  <text x="52" y="660" class="row-text mono">{ final_score, final_level, recommend, blocked, reason, summary, warnings }</text>
+  <text x="52" y="680" class="node-detail" fill="#0B6E3F">→ score &lt; 40 提前拦截  ·  → HITL confirm_proceed_analysis 中断</text>
+
+  <!-- ========== Arrows ========== -->
+  <!-- Stage 1 scorer → Stage 2 LLM (orange) -->
+  <path d="M 700 424 L 700 486" stroke="#F57C00" stroke-width="2" fill="none" marker-end="url(#va-arrow-orange)"/>
+  <text x="708" y="458" class="conn-label" fill="#F57C00" font-weight="600">rule_score</text>
+
+  <!-- Stage 2 → Output (purple) -->
+  <path d="M 480 594 L 480 618" stroke="#4B3FE3" stroke-width="2" fill="none" marker-end="url(#va-arrow-purple)"/>
+  <text x="488" y="610" class="conn-label" fill="#4B3FE3" font-weight="600">emit</text>
+
+  <!-- Stage 1 gates blocked → Output (red dashed, bypassing LLM) -->
+  <path d="M 240 416 L 240 432 L 944 432 L 944 610 L 880 610 L 880 618" stroke="#D93025" stroke-width="1.8" fill="none" stroke-dasharray="5 3" marker-end="url(#va-arrow-red)"/>
+  <text x="600" y="426" class="conn-label" fill="#D93025" font-weight="600">blocked → bypass LLM · 终止返回 ValuationResult(blocked=true)</text>
+
+  <!-- ========== Title at bottom ========== -->
+  <text x="480" y="740" text-anchor="middle" font-size="13" font-weight="700" fill="#3F3F46">Investment Compass — 价值评估双层流水线图</text>
+</svg>

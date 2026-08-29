@@ -1,0 +1,4 @@
+interface:
+  display_name: "人设与思维框架"
+  short_description: "PA Agent角色设定、思维框架、四条全局硬禁令"
+  default_prompt: "加载 人设与思维框架 技能包，参考 提示词大纲_人设与思维方式.txt 中的价格行为交易知识进行当前分析。PA Agent角色设定、思维框架、四条全局硬禁令"

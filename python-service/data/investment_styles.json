@@ -1,0 +1,129 @@
+{
+  "_comment": "投资风格画像库 — 6 维度 × 5 标签 = 30 风格 + 12 道冷启动问卷题",
+  "version": "2.0",
+  "dimensions": {
+    "risk_appetite": {
+      "label": "风险偏好",
+      "axis_label": "保守-激进",
+      "left_label": "保守",
+      "right_label": "激进",
+      "range": [-1.0, 1.0]
+    },
+    "time_horizon": {
+      "label": "时间周期",
+      "axis_label": "短线-长线",
+      "left_label": "短线",
+      "right_label": "长线",
+      "range": [-1.0, 1.0]
+    },
+    "decision_basis": {
+      "label": "决策依据",
+      "axis_label": "技术-基本面",
+      "left_label": "技术",
+      "right_label": "基本面",
+      "range": [-1.0, 1.0]
+    },
+    "trading_style": {
+      "label": "交易风格",
+      "axis_label": "左侧-右侧",
+      "left_label": "左侧",
+      "right_label": "右侧",
+      "range": [-1.0, 1.0]
+    },
+    "concentration": {
+      "label": "仓位集中度",
+      "axis_label": "分散-集中",
+      "left_label": "分散",
+      "right_label": "集中",
+      "range": [-1.0, 1.0]
+    },
+    "emotion_pref": {
+      "label": "情绪偏好",
+      "axis_label": "防御-题材",
+      "left_label": "防御",
+      "right_label": "题材",
+      "range": [-1.0, 1.0]
+    }
+  },
+  "styles": {
+    "risk_appetite": [
+      {"id": "ra_1", "label": "保守型",   "score": -0.9, "description": "无法承受本金波动，优先保本"},
+      {"id": "ra_2", "label": "稳健型",   "score": -0.4, "description": "可接受小幅波动换取稳定收益"},
+      {"id": "ra_3", "label": "平衡型",   "score": 0.0,  "description": "风险与收益均衡考量"},
+      {"id": "ra_4", "label": "进取型",   "score": 0.4,  "description": "可接受较大波动博取高收益"},
+      {"id": "ra_5", "label": "激进型",   "score": 0.9,  "description": "追求最大化收益，无视短期波动"}
+    ],
+    "time_horizon": [
+      {"id": "th_1", "label": "超短线打板", "score": -0.9, "description": "日内或T+1快进快出"},
+      {"id": "th_2", "label": "短线波段",   "score": -0.4, "description": "持仓数日至两周"},
+      {"id": "th_3", "label": "中线趋势",   "score": 0.0,  "description": "持仓数月，做趋势波段"},
+      {"id": "th_4", "label": "长线价值",   "score": 0.4,  "description": "持仓1-3年，价值投资"},
+      {"id": "th_5", "label": "永久持有",   "score": 0.9,  "description": "持仓3年以上，与公司共成长"}
+    ],
+    "decision_basis": [
+      {"id": "db_1", "label": "纯技术派",   "score": -0.9, "description": "只看K线/量价/指标"},
+      {"id": "db_2", "label": "量化派",     "score": -0.4, "description": "数据驱动，多因子模型"},
+      {"id": "db_3", "label": "混合派",     "score": 0.0,  "description": "技术+基本面结合"},
+      {"id": "db_4", "label": "基本面派",   "score": 0.4,  "description": "看财报/护城河/估值"},
+      {"id": "db_5", "label": "消息面派",   "score": 0.9,  "description": "政策/事件/题材驱动"}
+    ],
+    "trading_style": [
+      {"id": "ts_1", "label": "左侧抄底",   "score": -0.9, "description": "下跌中接刀子，逆势加仓"},
+      {"id": "ts_2", "label": "网格交易",   "score": -0.4, "description": "区间震荡分批买卖"},
+      {"id": "ts_3", "label": "趋势跟随",   "score": 0.0,  "description": "顺势而为，趋势确认后进场"},
+      {"id": "ts_4", "label": "右侧突破",   "score": 0.4,  "description": "突破后追涨杀跌"},
+      {"id": "ts_5", "label": "逆向投资",   "score": 0.9,  "description": "市场极端情绪反向操作"}
+    ],
+    "concentration": [
+      {"id": "co_1", "label": "极度分散",   "score": -0.9, "description": "10只以上股票分散风险"},
+      {"id": "co_2", "label": "均衡配置",   "score": -0.4, "description": "5-8只股票均衡配置"},
+      {"id": "co_3", "label": "半仓操作",   "score": 0.0,  "description": "3-5只股票半仓滚动"},
+      {"id": "co_4", "label": "集中持有",   "score": 0.4,  "description": "2-3只股票重仓"},
+      {"id": "co_5", "label": "单一重仓",   "score": 0.9,  "description": "1只股票满仓 All-in"}
+    ],
+    "emotion_pref": [
+      {"id": "ep_1", "label": "防御型",     "score": -0.9, "description": "红利/公用事业/必选消费"},
+      {"id": "ep_2", "label": "价值型",     "score": -0.4, "description": "低估值蓝筹，安全边际"},
+      {"id": "ep_3", "label": "均衡型",     "score": 0.0,  "description": "价值+成长均衡配置"},
+      {"id": "ep_4", "label": "成长偏好",   "score": 0.4,  "description": "高成长性公司，容忍高估值"},
+      {"id": "ep_5", "label": "题材追逐",   "score": 0.9,  "description": "追逐热点题材/概念股"}
+    ]
+  },
+  "cold_start_questions": [
+    {"id":"q01","scenario":"持仓下跌 20% 时，你的第一反应？","dimension":"risk_appetite","options":[{"label":"A","text":"立即止损，保住本金","scores":{"risk_appetite":-0.3,"trading_style":0.2}},{"label":"B","text":"加仓摊薄成本","scores":{"risk_appetite":0.3,"trading_style":-0.2}},{"label":"C","text":"持有不动等回本","scores":{"risk_appetite":-0.1,"time_horizon":0.2}}]},
+    {"id":"q02","scenario":"如何看待市盈率 80 倍的成长股？","dimension":"risk_appetite","options":[{"label":"A","text":"高估危险，坚决远离","scores":{"risk_appetite":-0.3,"emotion_pref":-0.2}},{"label":"B","text":"看成长性能否消化估值","scores":{"risk_appetite":0.0,"decision_basis":0.2}},{"label":"C","text":"题材好标的，值得参与","scores":{"risk_appetite":0.3,"emotion_pref":0.2}}]},
+    {"id":"q03","scenario":"你能接受的最大回撤是多少？","dimension":"risk_appetite","options":[{"label":"A","text":"5% 以内","scores":{"risk_appetite":-0.3}},{"label":"B","text":"10%-20%","scores":{"risk_appetite":0.0}},{"label":"C","text":"30% 以上也能承受","scores":{"risk_appetite":0.3}}]},
+    {"id":"q04","scenario":"持有的股票连续 3 个跌停板，你会？","dimension":"risk_appetite","options":[{"label":"A","text":"立即清仓，保命要紧","scores":{"risk_appetite":-0.3,"trading_style":0.2}},{"label":"B","text":"减半仓观察","scores":{"risk_appetite":0.0}},{"label":"C","text":"继续持有，甚至加仓","scores":{"risk_appetite":0.3,"trading_style":-0.2}}]},
+    {"id":"q05","scenario":"理想年化收益预期？","dimension":"risk_appetite","options":[{"label":"A","text":"5%-10%（保本优先）","scores":{"risk_appetite":-0.3,"emotion_pref":-0.1}},{"label":"B","text":"15%-25%（稳健增值）","scores":{"risk_appetite":0.0,"time_horizon":0.2}},{"label":"C","text":"50%+（高收益优先）","scores":{"risk_appetite":0.3,"emotion_pref":0.2}}]},
+
+    {"id":"q06","scenario":"你的持仓周期通常多久？","dimension":"time_horizon","options":[{"label":"A","text":"几天到两周","scores":{"time_horizon":-0.3}},{"label":"B","text":"几个月","scores":{"time_horizon":0.0}},{"label":"C","text":"几年甚至更久","scores":{"time_horizon":0.3,"decision_basis":0.1}}]},
+    {"id":"q07","scenario":"买入后涨了 30%，你会？","dimension":"time_horizon","options":[{"label":"A","text":"立即止盈落袋","scores":{"time_horizon":-0.3,"trading_style":0.1}},{"label":"B","text":"分批减仓锁定利润","scores":{"time_horizon":0.0}},{"label":"C","text":"继续持有等翻倍","scores":{"time_horizon":0.3,"risk_appetite":0.2}}]},
+    {"id":"q08","scenario":"你平时看盘的频率？","dimension":"time_horizon","options":[{"label":"A","text":"每天多次，实时盯盘","scores":{"time_horizon":-0.3}},{"label":"B","text":"每天收盘后看一次","scores":{"time_horizon":0.0}},{"label":"C","text":"每周或每月看一次","scores":{"time_horizon":0.3,"decision_basis":0.1}}]},
+    {"id":"q09","scenario":"这笔资金的投资期限是？","dimension":"time_horizon","options":[{"label":"A","text":"3 个月内可能要用","scores":{"time_horizon":-0.3}},{"label":"B","text":"1 年左右","scores":{"time_horizon":0.0}},{"label":"C","text":"3 年以上不急着用","scores":{"time_horizon":0.3,"risk_appetite":0.1}}]},
+    {"id":"q10","scenario":"选股时最关注什么时间维度？","dimension":"time_horizon","options":[{"label":"A","text":"短线资金流向与热度","scores":{"time_horizon":-0.3,"trading_style":0.1}},{"label":"B","text":"近几个季度的财报","scores":{"time_horizon":0.0,"decision_basis":0.2}},{"label":"C","text":"公司长期竞争壁垒","scores":{"time_horizon":0.3,"decision_basis":0.2}}]},
+
+    {"id":"q11","scenario":"买入决策主要看什么？","dimension":"decision_basis","options":[{"label":"A","text":"K 线形态与技术指标","scores":{"decision_basis":-0.3,"trading_style":0.1}},{"label":"B","text":"财报数据与行业地位","scores":{"decision_basis":0.3,"time_horizon":0.1}},{"label":"C","text":"政策风向/新闻题材","scores":{"decision_basis":0.1,"emotion_pref":0.2}}]},
+    {"id":"q12","scenario":"你看财报最关注哪个指标？","dimension":"decision_basis","options":[{"label":"A","text":"不看财报，看盘面就够了","scores":{"decision_basis":-0.3,"trading_style":0.1}},{"label":"B","text":"营收与利润增速","scores":{"decision_basis":0.2,"emotion_pref":0.1}},{"label":"C","text":"ROE 与经营性现金流","scores":{"decision_basis":0.3,"emotion_pref":-0.1}}]},
+    {"id":"q13","scenario":"如何判断买卖时点？","dimension":"decision_basis","options":[{"label":"A","text":"均线/KDJ/MACD 信号","scores":{"decision_basis":-0.3}},{"label":"B","text":"估值历史分位","scores":{"decision_basis":0.3,"time_horizon":0.1}},{"label":"C","text":"市场情绪与资金面","scores":{"decision_basis":0.0,"emotion_pref":0.2}}]},
+    {"id":"q14","scenario":"你获取投资信息的渠道？","dimension":"decision_basis","options":[{"label":"A","text":"技术分析社区/大 V","scores":{"decision_basis":-0.3,"emotion_pref":0.1}},{"label":"B","text":"财报/研报/公告","scores":{"decision_basis":0.3}},{"label":"C","text":"新闻/政策/社交媒体","scores":{"decision_basis":0.0,"emotion_pref":0.2}}]},
+    {"id":"q15","scenario":"如何看待一家公司的估值？","dimension":"decision_basis","options":[{"label":"A","text":"估值不重要，趋势为王","scores":{"decision_basis":-0.3,"trading_style":0.1}},{"label":"B","text":"PE/PB 处于历史低位才考虑","scores":{"decision_basis":0.3,"risk_appetite":-0.1}},{"label":"C","text":"高估值代表高成长预期","scores":{"decision_basis":-0.1,"risk_appetite":0.2}}]},
+
+    {"id":"q16","scenario":"你偏好如何选择入场时机？","dimension":"trading_style","options":[{"label":"A","text":"下跌中分批买入","scores":{"trading_style":-0.3,"risk_appetite":0.1}},{"label":"B","text":"放量突破后追涨","scores":{"trading_style":0.3}},{"label":"C","text":"趋势确立后顺势跟随","scores":{"trading_style":0.1,"time_horizon":0.1}}]},
+    {"id":"q17","scenario":"面对突发利好消息，你会？","dimension":"trading_style","options":[{"label":"A","text":"冷静观望，等回调再进","scores":{"trading_style":-0.2,"emotion_pref":-0.2}},{"label":"B","text":"分析消息实质影响再定","scores":{"trading_style":0.0,"decision_basis":0.2}},{"label":"C","text":"立即追入抓住机会","scores":{"trading_style":0.3,"emotion_pref":0.2}}]},
+    {"id":"q18","scenario":"如何应对震荡横盘市场？","dimension":"trading_style","options":[{"label":"A","text":"空仓等方向明确","scores":{"trading_style":-0.2,"time_horizon":-0.1}},{"label":"B","text":"网格区间高抛低吸","scores":{"trading_style":-0.1,"concentration":-0.1}},{"label":"C","text":"调仓换股优化配置","scores":{"trading_style":0.1,"decision_basis":0.1}}]},
+    {"id":"q19","scenario":"你的补仓/加仓策略是？","dimension":"trading_style","options":[{"label":"A","text":"越跌越买，摊薄成本","scores":{"trading_style":-0.3,"risk_appetite":0.1}},{"label":"B","text":"反弹确认趋势后加仓","scores":{"trading_style":0.3}},{"label":"C","text":"固定比例，不受涨跌影响","scores":{"trading_style":0.0,"concentration":0.1}}]},
+    {"id":"q20","scenario":"底部确认信号你更信任哪个？","dimension":"trading_style","options":[{"label":"A","text":"缩量企稳，地量见地价","scores":{"trading_style":-0.3}},{"label":"B","text":"放量长阳突破压力位","scores":{"trading_style":0.3}},{"label":"C","text":"估值跌到历史底部区间","scores":{"trading_style":-0.1,"decision_basis":0.3}}]},
+
+    {"id":"q21","scenario":"你倾向于持有几只股票？","dimension":"concentration","options":[{"label":"A","text":"10 只以上分散配置","scores":{"concentration":-0.3,"risk_appetite":-0.1}},{"label":"B","text":"3-5 只均衡配置","scores":{"concentration":0.0}},{"label":"C","text":"1-2 只集中重仓","scores":{"concentration":0.3,"risk_appetite":0.1}}]},
+    {"id":"q22","scenario":"单只股票仓位上限？","dimension":"concentration","options":[{"label":"A","text":"不超过 10%","scores":{"concentration":-0.3}},{"label":"B","text":"20%-30%","scores":{"concentration":0.0}},{"label":"C","text":"50% 以上，看准就重仓","scores":{"concentration":0.3,"risk_appetite":0.1}}]},
+    {"id":"q23","scenario":"你的资金管理方式？","dimension":"concentration","options":[{"label":"A","text":"等权重分散，降低风险","scores":{"concentration":-0.3}},{"label":"B","text":"核心仓位+卫星仓位","scores":{"concentration":0.0}},{"label":"C","text":"重仓集中火力，效率优先","scores":{"concentration":0.3}}]},
+    {"id":"q24","scenario":"行业配置偏好？","dimension":"concentration","options":[{"label":"A","text":"多个行业分散持仓","scores":{"concentration":-0.3}},{"label":"B","text":"聚焦 2-3 个熟悉行业","scores":{"concentration":0.0,"decision_basis":0.1}},{"label":"C","text":"集中一个赛道深入研究","scores":{"concentration":0.3,"decision_basis":0.2}}]},
+    {"id":"q25","scenario":"发现新的投资机会时，你会？","dimension":"concentration","options":[{"label":"A","text":"卖出部分现有持仓来换","scores":{"concentration":-0.2,"trading_style":0.1}},{"label":"B","text":"用小仓位先试探","scores":{"concentration":0.0}},{"label":"C","text":"重仓杀入，机会不等人","scores":{"concentration":0.3,"trading_style":0.2}}]},
+
+    {"id":"q26","scenario":"你最喜欢的板块类型？","dimension":"emotion_pref","options":[{"label":"A","text":"银行/公用事业/红利","scores":{"emotion_pref":-0.3,"risk_appetite":-0.1}},{"label":"B","text":"消费/医药/科技龙头","scores":{"emotion_pref":0.0,"decision_basis":0.2}},{"label":"C","text":"题材股/小盘成长","scores":{"emotion_pref":0.3,"risk_appetite":0.1}}]},
+    {"id":"q27","scenario":"遇到市场热议的题材板块，你会？","dimension":"emotion_pref","options":[{"label":"A","text":"远离不碰，题材都是泡沫","scores":{"emotion_pref":-0.3}},{"label":"B","text":"用小仓位试探性参与","scores":{"emotion_pref":0.0,"concentration":-0.1}},{"label":"C","text":"积极参与，热度就是机会","scores":{"emotion_pref":0.3,"concentration":0.1}}]},
+    {"id":"q28","scenario":"你的选股审美偏向？","dimension":"emotion_pref","options":[{"label":"A","text":"低波动高股息的稳健股","scores":{"emotion_pref":-0.3,"risk_appetite":-0.1}},{"label":"B","text":"成长与估值匹配的均衡股","scores":{"emotion_pref":0.0,"decision_basis":0.2}},{"label":"C","text":"高成长高弹性的话题股","scores":{"emotion_pref":0.3,"risk_appetite":0.1}}]},
+    {"id":"q29","scenario":"市场全面大涨时你的反应？","dimension":"emotion_pref","options":[{"label":"A","text":"警惕泡沫，逐步减仓","scores":{"emotion_pref":-0.3,"risk_appetite":-0.2}},{"label":"B","text":"保持原有仓位不动","scores":{"emotion_pref":0.0,"time_horizon":0.1}},{"label":"C","text":"加仓追涨，牛市不等人","scores":{"emotion_pref":0.3,"risk_appetite":0.2}}]},
+    {"id":"q30","scenario":"对 ST 股和新股的态度？","dimension":"emotion_pref","options":[{"label":"A","text":"风险太大，坚决不碰","scores":{"emotion_pref":-0.3,"risk_appetite":-0.1}},{"label":"B","text":"偶尔关注，不排斥","scores":{"emotion_pref":0.0}},{"label":"C","text":"积极参与，弹性大","scores":{"emotion_pref":0.3,"risk_appetite":0.2}}]}
+  ]
+}

@@ -1,0 +1,481 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 1420" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif">
+  <defs>
+    <marker id="ag-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M1 1 L9 5 L1 9 Z" fill="#7B1FA2"/>
+    </marker>
+    <marker id="ag-arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M1 1 L9 5 L1 9 Z" fill="#22A5F7"/>
+    </marker>
+    <marker id="ag-arrow-amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M1 1 L9 5 L1 9 Z" fill="#F57C00"/>
+    </marker>
+    <marker id="ag-arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M1 1 L9 5 L1 9 Z" fill="#1DC981"/>
+    </marker>
+    <marker id="ag-arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M1 1 L9 5 L1 9 Z" fill="#D93025"/>
+    </marker>
+    <marker id="ag-arrow-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M1 1 L9 5 L1 9 Z" fill="#71717A"/>
+    </marker>
+    <marker id="ag-arrow-dashed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M1 1 L9 5 L1 9 Z" fill="#F9A825"/>
+    </marker>
+  </defs>
+
+  <style>
+    .layer-title { font-size: 15px; font-weight: 700; fill: #171717; }
+    .layer-sub { font-size: 11px; fill: #71717A; }
+    .node-title { font-size: 13px; font-weight: 700; fill: #171717; }
+    .node-sub { font-size: 11px; fill: #52525B; }
+    .node-detail { font-size: 10px; fill: #71717A; }
+    .conn-label { font-size: 10px; fill: #52525B; font-weight: 600; }
+    .badge { font-size: 9px; font-weight: 600; }
+    .badge-sm { font-size: 8px; font-weight: 600; }
+    .panel-title { font-size: 11px; font-weight: 700; fill: #171717; }
+    .panel-line { font-size: 10px; fill: #52525B; }
+    .annot { font-size: 10px; fill: #71717A; font-style: italic; }
+    .annot-em { font-size: 10px; fill: #D93025; font-weight: 600; }
+    .mono { font-family: 'SF Mono', 'Menlo', 'Consolas', monospace; font-size: 10px; fill: #52525B; }
+    .state-key { font-size: 10px; font-weight: 600; fill: #4B3FE3; }
+    .tier-name { font-size: 10px; font-weight: 700; }
+    .tier-detail { font-size: 9px; fill: #52525B; }
+  </style>
+
+  <!-- Background -->
+  <rect x="0" y="0" width="1280" height="1420" fill="#FAFAFB"/>
+
+  <!-- ============ Title ============ -->
+  <text x="640" y="38" text-anchor="middle" font-size="22" font-weight="700" fill="#171717">Agentic RAG 资讯检索流水线 · Advisory SubAgent 架构图</text>
+  <text x="640" y="60" text-anchor="middle" font-size="12" fill="#71717A">LangGraph 子图（plan → retrieve → synthesize → merge）· DB-first 检索 · 双重联网降级 · 事件权重分级</text>
+  <text x="640" y="78" text-anchor="middle" font-size="10" fill="#9CA3AF" font-style="italic">核心文件：python-service/agents/advisory_agent.py（L1-869）· 注册于 main_agent.py:296</text>
+
+  <!-- ============ Layer 1: 主 Agent 编排层 ============ -->
+  <rect x="20" y="96" width="1240" height="120" rx="12" fill="#F3E5F5" opacity="0.45"/>
+  <text x="40" y="120" class="layer-title" fill="#4B3FE3">① 主 Agent 编排层 · main_agent.py</text>
+  <text x="280" y="120" class="layer-sub">主控 Agent 通过 task 工具委派 advisory 子 Agent，并透流式阶段事件给前端</text>
+
+  <!-- 主 Agent 节点 -->
+  <g>
+    <rect x="40" y="134" width="220" height="68" rx="8" fill="#FFFFFF" stroke="#4B3FE3" stroke-width="1.5"/>
+    <text x="52" y="154" class="node-title" fill="#4B3FE3">main_agent</text>
+    <text x="52" y="170" class="node-detail">subagents = [value, technical,</text>
+    <text x="52" y="184" class="node-detail">watchlist, advisory, ai_reader]</text>
+    <text x="52" y="197" class="node-detail">task 工具委派 → advisory</text>
+  </g>
+
+  <!-- task 工具调用 -->
+  <g>
+    <rect x="300" y="134" width="180" height="68" rx="8" fill="#FFFFFF" stroke="#4B3FE3" stroke-width="1.2" stroke-dasharray="4 3"/>
+    <text x="312" y="154" class="node-title" fill="#4B3FE3">task(subagent_type=</text>
+    <text x="312" y="170" class="node-title" fill="#4B3FE3">"advisory", description=...)</text>
+    <text x="312" y="186" class="node-detail">Deep Agents 编排</text>
+    <text x="312" y="198" class="node-detail">CompiledSubAgent 注册</text>
+  </g>
+
+  <!-- 事件透传 -->
+  <g>
+    <rect x="520" y="134" width="240" height="68" rx="8" fill="#FFFFFF" stroke="#4B3FE3" stroke-width="1.2"/>
+    <text x="532" y="154" class="node-title" fill="#4B3FE3">astream_agent_events</text>
+    <text x="532" y="170" class="node-detail">stream_mode="custom" 接收</text>
+    <text x="532" y="184" class="node-detail">stage 事件 → 透传前端</text>
+    <text x="532" y="197" class="node-detail mono">{type, subagent, stage, status}</text>
+  </g>
+
+  <!-- 前端 -->
+  <g>
+    <rect x="800" y="134" width="200" height="68" rx="8" fill="#FFFFFF" stroke="#7B1FA2" stroke-width="1.2"/>
+    <text x="812" y="154" class="node-title" fill="#7B1FA2">前端 SubagentCard</text>
+    <text x="812" y="170" class="node-detail">plan / retrieve / synthesize</text>
+    <text x="812" y="184" class="node-detail">三阶段时间线 + 引用脚注</text>
+    <text x="812" y="197" class="node-detail">intent / news_count / confidence</text>
+  </g>
+
+  <!-- structured_response 回流 -->
+  <g>
+    <rect x="1040" y="134" width="200" height="68" rx="8" fill="#FFFFFF" stroke="#1DC981" stroke-width="1.2"/>
+    <text x="1052" y="154" class="node-title" fill="#1DC981">structured_response</text>
+    <text x="1052" y="170" class="node-detail">AdvisoryResult.model_dump()</text>
+    <text x="1052" y="184" class="node-detail">→ ToolMessage.content (JSON)</text>
+    <text x="1052" y="197" class="node-detail">→ subagent_result 事件</text>
+  </g>
+
+  <!-- 编排层连线 -->
+  <line x1="260" y1="168" x2="298" y2="168" stroke="#4B3FE3" stroke-width="1.5" marker-end="url(#ag-arrow)"/>
+  <line x1="480" y1="168" x2="518" y2="168" stroke="#4B3FE3" stroke-width="1.5" marker-end="url(#ag-arrow)"/>
+  <line x1="760" y1="168" x2="798" y2="168" stroke="#7B1FA2" stroke-width="1.5" marker-end="url(#ag-arrow)"/>
+  <line x1="1000" y1="168" x2="1038" y2="168" stroke="#1DC981" stroke-width="1.5" marker-end="url(#ag-arrow)"/>
+
+  <!-- ============ Layer 2: LangGraph 子图 ============ -->
+  <rect x="20" y="232" width="1240" height="700" rx="12" fill="#FCE4EC" opacity="0.3"/>
+  <text x="40" y="256" class="layer-title" fill="#7B1FA2">② LangGraph 子图 · build_advisory_agent() · advisory_agent.py</text>
+  <text x="520" y="256" class="layer-sub">StateGraph(AdvisoryState) · set_entry_point("plan") · 条件边最多两轮回环</text>
+
+  <!-- AdvisoryState 状态卡片 -->
+  <g>
+    <rect x="40" y="272" width="290" height="132" rx="8" fill="#FFFFFF" stroke="#4B3FE3" stroke-width="1.2" stroke-dasharray="3 2"/>
+    <text x="52" y="290" class="panel-title" fill="#4B3FE3">AdvisoryState (MessagesState)</text>
+    <line x1="52" y1="296" x2="318" y2="296" stroke="#E5E7EB"/>
+    <text x="52" y="310" class="state-key">user_query: str</text>
+    <text x="180" y="310" class="panel-line">原始用户问题</text>
+    <text x="52" y="324" class="state-key">plan: dict</text>
+    <text x="180" y="324" class="panel-line">意图+子查询+stock_code</text>
+    <text x="52" y="338" class="state-key">retrieved_news: list</text>
+    <text x="180" y="338" class="panel-line">检索到的新闻条目</text>
+    <text x="52" y="352" class="state-key">retrieved_reports: list</text>
+    <text x="180" y="352" class="panel-line">检索到的研报条目</text>
+    <text x="52" y="366" class="state-key">web_answer: str</text>
+    <text x="180" y="366" class="panel-line">联网降级黑盒回答</text>
+    <text x="52" y="380" class="state-key">web_sources: list</text>
+    <text x="180" y="380" class="panel-line">open_page URL 列表</text>
+    <text x="52" y="394" class="state-key">loop_count: int</text>
+    <text x="180" y="394" class="panel-line">回环计数（限 2 轮）</text>
+  </g>
+
+  <!-- ───── plan_node ───── -->
+  <g>
+    <rect x="360" y="272" width="280" height="132" rx="8" fill="#FFFFFF" stroke="#7B1FA2" stroke-width="1.8"/>
+    <text x="372" y="292" class="node-title">① plan_node · L220</text>
+    <rect x="540" y="278" width="44" height="18" rx="4" fill="#FCE4EC"/>
+    <text x="562" y="291" text-anchor="middle" class="badge" fill="#7B1FA2">意图识别</text>
+    <text x="372" y="310" class="node-sub">LLM 拆解 → plan JSON</text>
+    <line x1="372" y1="316" x2="628" y2="316" stroke="#F3E4F6"/>
+    <text x="372" y="330" class="node-detail">• get_llm().invoke(_PLAN_SYSTEM_PROMPT)</text>
+    <text x="372" y="344" class="node-detail">• 输出 {stock_code, intent,</text>
+    <text x="372" y="358" class="node-detail">  sub_queries, needs_retrieval}</text>
+    <text x="372" y="372" class="node-detail">• stock_utils 规则补全股票代码</text>
+    <text x="372" y="386" class="node-detail">• LLM 失败 → 兜底 market_brief</text>
+    <text x="372" y="400" class="node-detail">  + needs_retrieval=true（不阻塞）</text>
+  </g>
+
+  <!-- intent 分类 -->
+  <g>
+    <rect x="660" y="272" width="240" height="132" rx="8" fill="#FFFFFF" stroke="#7B1FA2" stroke-width="1" stroke-dasharray="3 2"/>
+    <text x="672" y="290" class="panel-title" fill="#7B1FA2">intent 四分类</text>
+    <line x1="672" y1="296" x2="888" y2="296" stroke="#E5E7EB"/>
+    <rect x="672" y="302" width="90" height="16" rx="3" fill="#FCE4EC"/>
+    <text x="717" y="313" text-anchor="middle" class="badge-sm" fill="#7B1FA2">stock_news</text>
+    <text x="770" y="314" class="panel-line">个股新闻/事件</text>
+    <rect x="672" y="322" width="110" height="16" rx="3" fill="#FCE4EC"/>
+    <text x="727" y="333" text-anchor="middle" class="badge-sm" fill="#7B1FA2">research_report</text>
+    <text x="790" y="334" class="panel-line">券商研报</text>
+    <rect x="672" y="342" width="86" height="16" rx="3" fill="#FCE4EC"/>
+    <text x="715" y="353" text-anchor="middle" class="badge-sm" fill="#7B1FA2">market_brief</text>
+    <text x="766" y="354" class="panel-line">全市场快讯</text>
+    <rect x="672" y="362" width="64" height="16" rx="3" fill="#E8F5E9"/>
+    <text x="704" y="373" text-anchor="middle" class="badge-sm" fill="#059669">concept</text>
+    <text x="744" y="374" class="panel-line">概念解释→跳过检索</text>
+    <text x="672" y="394" class="annot">needs_retrieval=false</text>
+  </g>
+
+  <!-- ───── retrieve_node ───── -->
+  <g>
+    <rect x="360" y="420" width="280" height="168" rx="8" fill="#FFFFFF" stroke="#22A5F7" stroke-width="1.8"/>
+    <text x="372" y="440" class="node-title">② retrieve_node · L286</text>
+    <rect x="528" y="426" width="44" height="18" rx="4" fill="#E3F2FD"/>
+    <text x="550" y="439" text-anchor="middle" class="badge" fill="#0D47A1">并行检索</text>
+    <text x="372" y="458" class="node-sub">DB-first → AkShare live fetch</text>
+    <line x1="372" y1="464" x2="628" y2="464" stroke="#E3F2FD"/>
+    <text x="372" y="478" class="node-detail">stock_news + code:</text>
+    <text x="372" y="492" class="node-detail">  list_news(code, 60d, 100) +</text>
+    <text x="372" y="506" class="node-detail">  list_news(全市场, 2d, 15)</text>
+    <text x="372" y="520" class="node-detail">  → _rank_by_event_weight 分级</text>
+    <text x="372" y="534" class="node-detail">market_brief: list_news(7d, 80)</text>
+    <text x="372" y="548" class="node-detail">research_report: list_reports(180d)</text>
+    <text x="372" y="564" class="annot-em">⚠ 本地全空 → DeepSeek 联网降级</text>
+    <text x="372" y="578" class="node-detail">  deepseek_web_search(query)</text>
+  </g>
+
+  <!-- 事件权重分级 -->
+  <g>
+    <rect x="660" y="420" width="580" height="168" rx="8" fill="#FFFFFF" stroke="#22A5F7" stroke-width="1" stroke-dasharray="3 2"/>
+    <text x="672" y="440" class="panel-title" fill="#0D47A1">_rank_by_event_weight · 事件权重分级（L461）</text>
+    <text x="672" y="454" class="annot">拉 60d 宽范围 → 4 tier 分类 → 各 tier 独立时间窗口过滤 → weight DESC + time DESC → 取前 30+10</text>
+    <line x1="672" y1="460" x2="1228" y2="460" stroke="#E5E7EB"/>
+
+    <!-- Tier 表格 -->
+    <rect x="672" y="466" width="135" height="36" rx="4" fill="#FFEBEE" stroke="#D93025" stroke-width="0.8"/>
+    <text x="680" y="480" class="tier-name" fill="#D93025">price_sensitive</text>
+    <text x="680" y="494" class="tier-detail">w=4 · 7d · 财报/并购/</text>
+    <text x="680" y="503" class="tier-detail">增减持/分红</text>
+
+    <rect x="817" y="466" width="135" height="36" rx="4" fill="#FFF3E0" stroke="#F57C00" stroke-width="0.8"/>
+    <text x="825" y="480" class="tier-name" fill="#F57C00">announcement</text>
+    <text x="825" y="494" class="tier-detail">w=3 · 10d · 公告/</text>
+    <text x="825" y="503" class="tier-detail">龙虎榜/停复牌</text>
+
+    <rect x="962" y="466" width="135" height="36" rx="4" fill="#E3F2FD" stroke="#22A5F7" stroke-width="0.8"/>
+    <text x="970" y="480" class="tier-name" fill="#0D47A1">sentiment</text>
+    <text x="970" y="494" class="tier-detail">w=2 · 7d · 研报/</text>
+    <text x="970" y="503" class="tier-detail">评级/资金流</text>
+
+    <rect x="1107" y="466" width="121" height="36" rx="4" fill="#F3E5F5" stroke="#4B3FE3" stroke-width="0.8"/>
+    <text x="1115" y="480" class="tier-name" fill="#4B3FE3">strategic</text>
+    <text x="1115" y="494" class="tier-detail">w=1 · 60d · 战略/</text>
+    <text x="1115" y="503" class="tier-detail">合作/宏观</text>
+
+    <text x="672" y="524" class="panel-line">个股新闻：去重 → _classify_event 分类 → 超窗口丢弃 → weight DESC 排序 → 前 30 条</text>
+    <text x="672" y="538" class="panel-line">全市场快讯：不分级，2 天窗口，时间倒序前 10 条（仅作背景补充）</text>
+    <text x="672" y="556" class="annot-em">避免固定 7 天窗口漏掉高价值事件或混入过期低权重事件</text>
+    <text x="672" y="572" class="annot">匹配规则：标题+内容含关键词 → 命中第一个 tier 返回（高权重优先）</text>
+  </g>
+
+  <!-- ───── synthesize_node ───── -->
+  <g>
+    <rect x="360" y="604" width="280" height="172" rx="8" fill="#FFFFFF" stroke="#1DC981" stroke-width="1.8"/>
+    <text x="372" y="624" class="node-title">③ synthesize_node · L568</text>
+    <rect x="520" y="610" width="44" height="18" rx="4" fill="#E8F5E9"/>
+    <text x="542" y="623" text-anchor="middle" class="badge" fill="#059669">LLM 综合</text>
+    <text x="372" y="642" class="node-sub">检索结果 + 用户问题 → AdvisoryResult</text>
+    <line x1="372" y1="648" x2="628" y2="648" stroke="#E8F5E9"/>
+    <text x="372" y="662" class="node-detail">web_answer 非空 → 直接采用</text>
+    <text x="372" y="676" class="node-detail">  （联网降级，不再二次综合）</text>
+    <text x="372" y="690" class="node-detail">否则: _format_news/reports →</text>
+    <text x="372" y="704" class="node-detail">  get_llm().invoke(_SYNTHESIZE)</text>
+    <text x="372" y="718" class="node-detail">  → 严格 JSON {answer,citations,</text>
+    <text x="372" y="732" class="node-detail">  confidence}</text>
+    <text x="372" y="750" class="annot-em">⚠ 检索非空但 citations 空</text>
+    <text x="372" y="764" class="annot-em">  → _web_search_fallback 补一轮</text>
+  </g>
+
+  <!-- 来源校验逻辑 -->
+  <g>
+    <rect x="660" y="604" width="580" height="172" rx="8" fill="#FFFFFF" stroke="#1DC981" stroke-width="1" stroke-dasharray="3 2"/>
+    <text x="672" y="624" class="panel-title" fill="#059669">来源校验三层兜底（L656-690）</text>
+    <line x1="672" y1="630" x2="1228" y2="630" stroke="#E5E7EB"/>
+
+    <rect x="672" y="638" width="180" height="44" rx="4" fill="#FFF8E1" stroke="#F9A825" stroke-width="0.8"/>
+    <text x="680" y="652" class="panel-title" fill="#F9A825">层 1：联网补搜</text>
+    <text x="680" y="666" class="panel-line">citations 空 + needs_retrieval</text>
+    <text x="680" y="678" class="panel-line">→ _web_search_fallback()</text>
+
+    <rect x="862" y="638" width="180" height="44" rx="4" fill="#FFEBEE" stroke="#D93025" stroke-width="0.8"/>
+    <text x="870" y="652" class="panel-title" fill="#D93025">层 2：低置信降级</text>
+    <text x="870" y="666" class="panel-line">补搜失败 + 有检索</text>
+    <text x="870" y="678" class="panel-line">→ confidence ≤ 0.3 + 提示</text>
+
+    <rect x="1052" y="638" width="176" height="44" rx="4" fill="#E8F5E9" stroke="#1DC981" stroke-width="0.8"/>
+    <text x="1060" y="652" class="panel-title" fill="#059669">层 3：概念兜底</text>
+    <text x="1060" y="666" class="panel-line">无检索（concept 类）</text>
+    <text x="1060" y="678" class="panel-line">→ llm_knowledge 来源</text>
+
+    <text x="672" y="704" class="panel-title" fill="#059669">Citation 结构（强制规则）</text>
+    <text x="672" y="718" class="mono">{source, title, publish_time, url}</text>
+    <text x="672" y="732" class="panel-line">• answer 中 [N] 标注必须对应一条 citation</text>
+    <text x="672" y="746" class="panel-line">• url 不可为空（直接取检索结果，禁止编造）</text>
+    <text x="672" y="760" class="panel-line">• 最多 8 条，按 answer 出现顺序排列</text>
+    <text x="672" y="772" class="panel-line">• source 标识：em_news/cls_telegraph/em_global/research_reports</text>
+  </g>
+
+  <!-- ───── 条件边 ───── -->
+  <g>
+    <rect x="360" y="792" width="280" height="96" rx="8" fill="#FFF8E1" stroke="#F9A825" stroke-width="1.5" stroke-dasharray="5 3"/>
+    <text x="372" y="812" class="node-title" fill="#F9A825">⟲ _route_after_synthesize · L731</text>
+    <text x="372" y="826" class="node-sub">条件边：信息不足 → 回 plan（最多 2 轮）</text>
+    <line x1="372" y1="832" x2="628" y2="832" stroke="#FFF3E0"/>
+    <text x="372" y="846" class="node-detail">needs_retrieval=false → merge ✓</text>
+    <text x="372" y="860" class="node-detail">web_answer 非空 → merge ✓（已降级）</text>
+    <text x="372" y="874" class="node-detail">news+reports 全空 + loop&lt;2 → plan ⟲</text>
+    <text x="372" y="882" class="node-detail" font-size="9">  （第 2 轮自动清 stock_code → market_brief）</text>
+  </g>
+
+  <!-- merge_node -->
+  <g>
+    <rect x="680" y="792" width="240" height="96" rx="8" fill="#FFFFFF" stroke="#71717A" stroke-width="1.8"/>
+    <text x="692" y="812" class="node-title">④ merge_node · L712</text>
+    <rect x="864" y="798" width="44" height="18" rx="4" fill="#F4F4F5"/>
+    <text x="886" y="811" text-anchor="middle" class="badge" fill="#52525B">收尾</text>
+    <text x="692" y="832" class="node-sub">构造 AdvisoryResult</text>
+    <text x="692" y="848" class="node-detail">• answer + citations + confidence</text>
+    <text x="692" y="862" class="node-detail">• messages: [AIMessage preview]</text>
+    <text x="692" y="876" class="node-detail">• structured_response → 父 Agent</text>
+  </g>
+
+  <!-- AdvisoryResult 结构 -->
+  <g>
+    <rect x="940" y="792" width="300" height="96" rx="8" fill="#FFFFFF" stroke="#1DC981" stroke-width="1.2"/>
+    <text x="952" y="812" class="panel-title" fill="#059669">AdvisoryResult (Pydantic)</text>
+    <line x1="952" y1="818" x2="1228" y2="818" stroke="#E5E7EB"/>
+    <text x="952" y="832" class="mono">answer: str  # 含 [N] 引用标注</text>
+    <text x="952" y="848" class="mono">citations: list[Citation]</text>
+    <text x="952" y="864" class="mono">confidence: float  # 0.0-1.0</text>
+    <text x="952" y="880" class="annot">→ model_dump() → structured_response</text>
+  </g>
+
+  <!-- 子图内部连线 -->
+  <line x1="500" y1="404" x2="500" y2="418" stroke="#7B1FA2" stroke-width="2" marker-end="url(#ag-arrow)"/>
+  <text x="508" y="414" class="conn-label">plan</text>
+
+  <line x1="500" y1="588" x2="500" y2="602" stroke="#22A5F7" stroke-width="2" marker-end="url(#ag-arrow-blue)"/>
+  <text x="508" y="598" class="conn-label">retrieved_*</text>
+
+  <line x1="500" y1="776" x2="500" y2="790" stroke="#1DC981" stroke-width="2" marker-end="url(#ag-arrow-green)"/>
+  <text x="508" y="786" class="conn-label">advisory_result</text>
+
+  <!-- 条件边回环箭头（synthesize → plan） -->
+  <path d="M 360 690 Q 320 690 320 500 Q 320 338 358 338" fill="none" stroke="#F9A825" stroke-width="2" stroke-dasharray="6 3" marker-end="url(#ag-arrow-dashed)"/>
+  <text x="280" y="515" class="conn-label" fill="#F9A825">信息不足 ⟲回 plan</text>
+  <text x="280" y="528" class="annot" fill="#F9A825">（loop&lt;2 且非 web 降级）</text>
+
+  <!-- 条件边 → merge -->
+  <line x1="640" y1="840" x2="678" y2="840" stroke="#71717A" stroke-width="2" marker-end="url(#ag-arrow-gray)"/>
+  <text x="644" y="832" class="conn-label">→ merge</text>
+
+  <!-- merge → END -->
+  <line x1="920" y1="840" x2="938" y2="840" stroke="#1DC981" stroke-width="2" marker-end="url(#ag-arrow-green)"/>
+  <text x="924" y="832" class="conn-label">END</text>
+
+  <!-- ============ Layer 3: 数据源层 ============ -->
+  <rect x="20" y="948" width="1240" height="232" rx="12" fill="#E3F2FD" opacity="0.35"/>
+  <text x="40" y="972" class="layer-title" fill="#0D47A1">③ 数据源层 · DB-first + AkShare live fetch + DeepSeek 联网降级</text>
+  <text x="640" y="972" class="layer-sub">news_service.list_news / list_research_reports · 15s 超时保护 · 幂等 upsert</text>
+
+  <!-- DB-first 流程 -->
+  <g>
+    <rect x="40" y="988" width="200" height="80" rx="8" fill="#FFFFFF" stroke="#22A5F7" stroke-width="1.5"/>
+    <text x="52" y="1008" class="node-title" fill="#0D47A1">Step 1: DB 查询</text>
+    <text x="52" y="1024" class="node-detail">MySQL stock_news /</text>
+    <text x="52" y="1038" class="node-detail">research_reports 表</text>
+    <text x="52" y="1052" class="node-detail">按 publish_time + symbol</text>
+    <text x="52" y="1063" class="node-detail">+ source 过滤</text>
+  </g>
+
+  <g>
+    <rect x="260" y="988" width="200" height="80" rx="8" fill="#FFFFFF" stroke="#F9A825" stroke-width="1.5"/>
+    <text x="272" y="1008" class="node-title" fill="#F9A825">Step 2: DB miss → live fetch</text>
+    <text x="272" y="1024" class="node-detail">run_with_timeout(15s)</text>
+    <text x="272" y="1038" class="node-detail">NewsSource → AkShare</text>
+    <text x="272" y="1052" class="node-detail">限流+重试+缓存</text>
+    <text x="272" y="1063" class="node-detail">→ _bulk_upsert 写 DB</text>
+  </g>
+
+  <g>
+    <rect x="480" y="988" width="200" height="80" rx="8" fill="#FFFFFF" stroke="#1DC981" stroke-width="1.5"/>
+    <text x="492" y="1008" class="node-title" fill="#059669">Step 3: 再查 DB</text>
+    <text x="492" y="1024" class="node-detail">live_fetch=False 递归</text>
+    <text x="492" y="1038" class="node-detail">返回结构化 dict 列表</text>
+    <text x="492" y="1052" class="node-detail">超时/失败 → 返回 []</text>
+    <text x="492" y="1063" class="node-detail">（上层触发联网降级）</text>
+  </g>
+
+  <!-- AkShare 四源 -->
+  <g>
+    <rect x="700" y="988" width="260" height="80" rx="8" fill="#FFFFFF" stroke="#F57C00" stroke-width="1.2"/>
+    <text x="712" y="1008" class="panel-title" fill="#F57C00">NewsSource (data_source/news_source.py)</text>
+    <line x1="712" y1="1014" x2="948" y2="1014" stroke="#FFF3E0"/>
+    <text x="712" y="1028" class="mono">ak.stock_news_em(symbol)</text>
+    <text x="830" y="1028" class="panel-line">个股新闻</text>
+    <text x="712" y="1042" class="mono">ak.stock_info_global_cls()</text>
+    <text x="830" y="1042" class="panel-line">财联社电报</text>
+    <text x="712" y="1056" class="mono">ak.stock_info_global_em()</text>
+    <text x="830" y="1056" class="panel-line">东财全球资讯</text>
+    <text x="712" y="1066" class="mono">研报接口</text>
+    <text x="830" y="1066" class="panel-line">券商研报</text>
+  </g>
+
+  <!-- DB 表 -->
+  <g>
+    <rect x="980" y="988" width="120" height="80" rx="8" fill="#FFFFFF" stroke="#22A5F7" stroke-width="1.2"/>
+    <text x="992" y="1008" class="panel-title" fill="#0D47A1">MySQL 表</text>
+    <line x1="992" y1="1014" x2="1088" y2="1014" stroke="#E5E7EB"/>
+    <text x="992" y="1028" class="mono">stock_news</text>
+    <text x="992" y="1046" class="mono">research_reports</text>
+    <text x="992" y="1063" class="annot">唯一键 upsert</text>
+  </g>
+
+  <!-- DeepSeek 联网降级 -->
+  <g>
+    <rect x="1120" y="988" width="120" height="80" rx="8" fill="#FFFFFF" stroke="#D93025" stroke-width="1.5"/>
+    <text x="1132" y="1008" class="node-title" fill="#D93025">联网降级</text>
+    <text x="1132" y="1024" class="node-detail">Responses API</text>
+    <text x="1132" y="1038" class="node-detail">tools=web_search</text>
+    <text x="1132" y="1052" class="node-detail">黑盒：answer +</text>
+    <text x="1132" y="1063" class="node-detail">open_page URLs</text>
+  </g>
+
+  <!-- 数据源层连线 -->
+  <line x1="240" y1="1028" x2="258" y2="1028" stroke="#F9A825" stroke-width="1.5" stroke-dasharray="4 2" marker-end="url(#ag-arrow-amber)"/>
+  <text x="244" y="1020" class="annot">miss</text>
+  <line x1="460" y1="1028" x2="478" y2="1028" stroke="#1DC981" stroke-width="1.5" marker-end="url(#ag-arrow-green)"/>
+  <text x="464" y="1020" class="annot">写入</text>
+  <line x1="680" y1="1028" x2="698" y2="1028" stroke="#F57C00" stroke-width="1.5" marker-end="url(#ag-arrow-amber)"/>
+  <line x1="960" y1="1028" x2="978" y2="1028" stroke="#22A5F7" stroke-width="1.5" marker-end="url(#ag-arrow-blue)"/>
+
+  <!-- 双重降级触发点说明 -->
+  <g>
+    <rect x="40" y="1088" width="1200" height="76" rx="8" fill="#FFF8E1" stroke="#F9A825" stroke-width="1" stroke-dasharray="4 2"/>
+    <text x="52" y="1108" class="node-title" fill="#F9A825">⚠ 双重联网降级触发点（DeepSeek Responses API · 黑盒限制）</text>
+    <line x1="52" y1="1114" x2="1228" y2="1114" stroke="#FFF3E0"/>
+
+    <rect x="52" y="1122" width="560" height="36" rx="4" fill="#FFFFFF" stroke="#D93025" stroke-width="0.8"/>
+    <text x="60" y="1136" class="panel-title" fill="#D93025">触发 ① retrieve_node · L353</text>
+    <text x="60" y="1150" class="panel-line">news + reports 全空且 needs_retrieval=true → deepseek_web_search(query)</text>
+
+    <rect x="624" y="1122" width="576" height="36" rx="4" fill="#FFFFFF" stroke="#D93025" stroke-width="0.8"/>
+    <text x="632" y="1136" class="panel-title" fill="#D93025">触发 ② synthesize_node · L664</text>
+    <text x="632" y="1150" class="panel-line">检索非空但 LLM citations 为空（内容不相关）→ _web_search_fallback(query) 补一轮</text>
+  </g>
+
+  <!-- ============ Layer 4: 图结构总结 ============ -->
+  <rect x="20" y="1200" width="1240" height="196" rx="12" fill="#F3E5F5" opacity="0.3"/>
+  <text x="40" y="1224" class="layer-title" fill="#4B3FE3">④ 图结构与关键约束总结</text>
+
+  <!-- 图结构文本 -->
+  <g>
+    <rect x="40" y="1238" width="380" height="146" rx="8" fill="#FFFFFF" stroke="#7B1FA2" stroke-width="1"/>
+    <text x="52" y="1258" class="panel-title" fill="#7B1FA2">StateGraph 结构（L839-858）</text>
+    <line x1="52" y1="1264" x2="408" y2="1264" stroke="#E5E7EB"/>
+    <text x="52" y="1280" class="mono">set_entry_point("plan")</text>
+    <text x="52" y="1296" class="mono">plan ──► retrieve ──► synthesize</text>
+    <text x="52" y="1312" class="mono">  └─► {条件边: plan | merge}</text>
+    <text x="52" y="1328" class="mono">merge ──► END</text>
+    <text x="52" y="1352" class="panel-line">CompiledSubAgent(name="advisory",</text>
+    <text x="52" y="1366" class="panel-line">  description=..., runnable=graph)</text>
+    <text x="52" y="1380" class="annot">注册于 main_agent.py:296 subagents 列表</text>
+  </g>
+
+  <!-- 关键约束 -->
+  <g>
+    <rect x="440" y="1238" width="380" height="146" rx="8" fill="#FFFFFF" stroke="#1DC981" stroke-width="1"/>
+    <text x="452" y="1258" class="panel-title" fill="#059669">关键约束与设计要点</text>
+    <line x1="452" y1="1264" x2="808" y2="1264" stroke="#E5E7EB"/>
+    <text x="452" y="1280" class="panel-line">• 能力边界：仅资讯问答，不碰行情/K线/买卖</text>
+    <text x="452" y="1296" class="panel-line">• 回环上限：最多 2 轮（第 2 轮放宽全市场）</text>
+    <text x="452" y="1312" class="panel-line">• 容错：任何节点失败仅告警，绝不阻塞主流程</text>
+    <text x="452" y="1328" class="panel-line">• 联网降级黑盒：仅 answer + open_page URL</text>
+    <text x="452" y="1344" class="panel-line">  （标题/摘要不可得，占位"联网搜索结果来源 N"）</text>
+    <text x="452" y="1360" class="panel-line">• 引用强制：检索非空则 citations 必须非空</text>
+    <text x="452" y="1376" class="panel-line">• 流式事件：plan/retrieve/synthesize 三阶段透传</text>
+  </g>
+
+  <!-- 数据流总结 -->
+  <g>
+    <rect x="840" y="1238" width="400" height="146" rx="8" fill="#FFFFFF" stroke="#22A5F7" stroke-width="1"/>
+    <text x="852" y="1258" class="panel-title" fill="#0D47A1">完整数据流</text>
+    <line x1="852" y1="1264" x2="1228" y2="1264" stroke="#E5E7EB"/>
+    <text x="852" y="1280" class="panel-line">用户问题 → plan(LLM 拆解意图)</text>
+    <text x="852" y="1296" class="panel-line">→ retrieve(DB→AkShare→联网降级)</text>
+    <text x="852" y="1312" class="panel-line">  → 事件权重分级过滤排序</text>
+    <text x="852" y="1328" class="panel-line">→ synthesize(LLM 综合+引用校验)</text>
+    <text x="852" y="1344" class="panel-line">  → 联网补搜 / 概念兜底</text>
+    <text x="852" y="1360" class="panel-line">→ {信息不足? → plan ⟲ : → merge}</text>
+    <text x="852" y="1376" class="panel-line">→ AdvisoryResult → 主 Agent → 前端</text>
+  </g>
+
+  <!-- 底部图例 -->
+  <g transform="translate(40, 1404)">
+    <text x="0" y="0" class="annot" font-weight="600">图例：</text>
+    <rect x="48" y="-9" width="12" height="12" fill="#FFFFFF" stroke="#7B1FA2" stroke-width="1.5"/>
+    <text x="64" y="0" class="annot">LangGraph 节点</text>
+    <rect x="160" y="-9" width="12" height="12" fill="#FFFFFF" stroke="#22A5F7" stroke-width="1.5"/>
+    <text x="176" y="0" class="annot">检索/数据源</text>
+    <rect x="272" y="-9" width="12" height="12" fill="#FFFFFF" stroke="#1DC981" stroke-width="1.5"/>
+    <text x="288" y="0" class="annot">综合/输出</text>
+    <rect x="372" y="-9" width="12" height="12" fill="#FFFFFF" stroke="#F9A825" stroke-width="1.5" stroke-dasharray="3 2"/>
+    <text x="388" y="0" class="annot">条件边/降级</text>
+    <rect x="480" y="-9" width="12" height="12" fill="#FFFFFF" stroke="#D93025" stroke-width="1.5"/>
+    <text x="496" y="0" class="annot">联网搜索</text>
+    <line x1="580" y1="-3" x2="612" y2="-3" stroke="#F9A825" stroke-width="2" stroke-dasharray="6 3"/>
+    <text x="618" y="0" class="annot">回环重试</text>
+  </g>
+</svg>

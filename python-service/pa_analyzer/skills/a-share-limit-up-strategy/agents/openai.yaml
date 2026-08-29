@@ -1,0 +1,4 @@
+interface:
+  display_name: "A股涨停板策略"
+  short_description: "A股涨停板/跌停板的特殊规则和涨跌停附近的交易策略"
+  default_prompt: "加载 A股涨停板策略 技能包，参考 A股涨停板策略.txt 中的价格行为交易知识进行当前分析。A股涨停板/跌停板的特殊规则和涨跌停附近的交易策略"

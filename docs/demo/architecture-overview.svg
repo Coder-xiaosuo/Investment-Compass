@@ -1,0 +1,245 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 760" width="100%" height="auto" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M1 1 L7 4 L1 7 Z" fill="#52525B"/>
+    </marker>
+    <marker id="arrow-brand" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M1 1 L7 4 L1 7 Z" fill="#4B3FE3"/>
+    </marker>
+    <marker id="arrow-accent" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M1 1 L7 4 L1 7 Z" fill="#27D2BF"/>
+    </marker>
+    <marker id="arrow-c2" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M1 1 L7 4 L1 7 Z" fill="#F57C00"/>
+    </marker>
+  </defs>
+
+  <style>
+    .label-title { font-size: 15px; font-weight: 600; fill: #171717; }
+    .label-sub { font-size: 12px; fill: #52525B; }
+    .layer-title { font-size: 13px; font-weight: 600; fill: #171717; }
+    .node-title { font-size: 12px; font-weight: 600; fill: #171717; }
+    .node-sub { font-size: 11px; fill: #52525B; }
+    .conn-label { font-size: 10px; fill: #52525B; }
+    .badge { font-size: 10px; font-weight: 600; }
+  </style>
+
+  <!-- 背景 -->
+  <rect x="0" y="0" width="960" height="760" fill="#F7F7F8" rx="12"/>
+
+  <!-- ========== 第1层：前端 ========== -->
+  <rect x="24" y="24" width="912" height="148" rx="12" fill="#EDE7F6" stroke="#4B3FE3" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.6"/>
+  <text x="40" y="46" class="layer-title">🖥️ 前端层</text>
+  <text x="140" y="46" class="label-sub">React 19 · Vite 8 · Tailwind v4 · Lightweight Charts v5</text>
+  <text x="24" y="166" class="badge" fill="#4B3FE3">端口 5173</text>
+
+  <!-- 前端节点 -->
+  <!-- ChatView -->
+  <g transform="translate(48,64)">
+    <rect x="0" y="0" width="140" height="48" rx="8" fill="#FFFFFF" stroke="#4B3FE3" stroke-width="1.5"/>
+    <text x="12" y="22" class="node-title">ChatView</text>
+    <text x="12" y="38" class="node-sub">AI 对话 + SSE</text>
+  </g>
+  <!-- 操盘看板 -->
+  <g transform="translate(208,64)">
+    <rect x="0" y="0" width="160" height="48" rx="8" fill="#FFFFFF" stroke="#4B3FE3" stroke-width="1.5"/>
+    <text x="12" y="22" class="node-title">操盘看板 x3</text>
+    <text x="12" y="38" class="node-sub">技术/基本/市场</text>
+  </g>
+  <!-- KlineChart -->
+  <g transform="translate(388,64)">
+    <rect x="0" y="0" width="140" height="48" rx="8" fill="#FFFFFF" stroke="#4B3FE3" stroke-width="1.5"/>
+    <text x="12" y="22" class="node-title">KlineChart</text>
+    <text x="12" y="38" class="node-sub">K 线图 MA/ATR</text>
+  </g>
+  <!-- 画像 -->
+  <g transform="translate(548,64)">
+    <rect x="0" y="0" width="140" height="48" rx="8" fill="#FFFFFF" stroke="#4B3FE3" stroke-width="1.5"/>
+    <text x="12" y="22" class="node-title">投资画像</text>
+    <text x="12" y="38" class="node-sub">六维雷达 SVG</text>
+  </g>
+  <!-- WS客户端 -->
+  <g transform="translate(708,64)">
+    <rect x="0" y="0" width="140" height="48" rx="8" fill="#FFFFFF" stroke="#4B3FE3" stroke-width="1.5"/>
+    <text x="12" y="22" class="node-title">WS 客户端</text>
+    <text x="12" y="38" class="node-sub">/ws/quote 实时</text>
+  </g>
+
+  <!-- ========== 第2层：Java 后端 ========== -->
+  <rect x="24" y="196" width="436" height="176" rx="12" fill="#FFF3E0" stroke="#F57C00" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.6"/>
+  <text x="40" y="218" class="layer-title">☕ Java 后端</text>
+  <text x="150" y="218" class="label-sub">Spring Boot 3.5 · Java 21 · MyBatis-Flex</text>
+  <text x="24" y="366" class="badge" fill="#F57C00">端口 8879</text>
+
+  <g transform="translate(48,234)">
+    <rect x="0" y="0" width="124" height="44" rx="8" fill="#FFFFFF" stroke="#F57C00" stroke-width="1.5"/>
+    <text x="10" y="20" class="node-title">StockCtrl</text>
+    <text x="10" y="34" class="node-sub">搜索/K线/指标</text>
+  </g>
+  <g transform="translate(192,234)">
+    <rect x="0" y="0" width="124" height="44" rx="8" fill="#FFFFFF" stroke="#F57C00" stroke-width="1.5"/>
+    <text x="10" y="20" class="node-title">Watchlist</text>
+    <text x="10" y="34" class="node-sub">自选股 CRUD</text>
+  </g>
+  <g transform="translate(336,234)">
+    <rect x="0" y="0" width="100" height="44" rx="8" fill="#FFFFFF" stroke="#F57C00" stroke-width="1.5"/>
+    <text x="10" y="20" class="node-title">MarketBD</text>
+    <text x="10" y="34" class="node-sub">指数/排名</text>
+  </g>
+  <g transform="translate(48,292)">
+    <rect x="0" y="0" width="124" height="44" rx="8" fill="#FFFFFF" stroke="#F57C00" stroke-width="1.5"/>
+    <text x="10" y="20" class="node-title">Monitor</text>
+    <text x="10" y="34" class="node-sub">数据质量监控</text>
+  </g>
+  <g transform="translate(192,292)">
+    <rect x="0" y="0" width="244" height="44" rx="8" fill="#FFFFFF" stroke="#F57C00" stroke-width="1.5"/>
+    <text x="10" y="20" class="node-title">WebSocket /ws/quote</text>
+    <text x="10" y="34" class="node-sub">订阅 → 广播实时行情</text>
+  </g>
+
+  <!-- ========== 第2.5层：Python 服务 ========== -->
+  <rect x="500" y="196" width="436" height="256" rx="12" fill="#F3E5F5" stroke="#7B1FA2" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.6"/>
+  <text x="516" y="218" class="layer-title">🐍 Python 服务</text>
+  <text x="630" y="218" class="label-sub">FastAPI · LangGraph · Deep Agents</text>
+  <text x="500" y="446" class="badge" fill="#7B1FA2">端口 8002</text>
+
+  <!-- Agent 编排 -->
+  <g transform="translate(524,234)">
+    <rect x="0" y="0" width="168" height="52" rx="8" fill="#FFFFFF" stroke="#7B1FA2" stroke-width="1.5"/>
+    <text x="10" y="20" class="node-title">Main Agent</text>
+    <text x="10" y="36" class="node-sub">LangGraph 编排 + HITL</text>
+  </g>
+  <g transform="translate(524,298)">
+    <rect x="0" y="0" width="80" height="40" rx="8" fill="#FFFFFF" stroke="#7B1FA2" stroke-width="1"/>
+    <text x="8" y="18" class="node-title" style="font-size:11px;">估值</text>
+    <text x="8" y="30" class="node-sub" style="font-size:9px;">规则+LLM</text>
+  </g>
+  <g transform="translate(616,298)">
+    <rect x="0" y="0" width="80" height="40" rx="8" fill="#FFFFFF" stroke="#7B1FA2" stroke-width="1"/>
+    <text x="8" y="18" class="node-title" style="font-size:11px;">技术</text>
+    <text x="8" y="30" class="node-sub" style="font-size:9px;">7节点Lang</text>
+  </g>
+  <g transform="translate(524,350)">
+    <rect x="0" y="0" width="168" height="44" rx="8" fill="#FFFFFF" stroke="#7B1FA2" stroke-width="1"/>
+    <text x="10" y="18" class="node-title" style="font-size:11px;">Services: Chat/Sync/Exp/Style</text>
+    <text x="10" y="33" class="node-sub" style="font-size:10px;">27 Service + 33 PA Skill</text>
+  </g>
+
+  <!-- 资讯/研报 + 画像 + 回测 -->
+  <g transform="translate(712,234)">
+    <rect x="0" y="0" width="200" height="44" rx="8" fill="#FFFFFF" stroke="#7B1FA2" stroke-width="1"/>
+    <text x="10" y="20" class="node-title" style="font-size:11px;">33 PA Strategy Skills</text>
+    <text x="10" y="34" class="node-sub" style="font-size:10px;">涨停/缺口/通道/板块联动</text>
+  </g>
+  <g transform="translate(712,290)">
+    <rect x="0" y="0" width="96" height="40" rx="8" fill="#FFFFFF" stroke="#7B1FA2" stroke-width="1"/>
+    <text x="8" y="18" class="node-title" style="font-size:11px;">资讯RAG</text>
+    <text x="8" y="30" class="node-sub" style="font-size:9px;">news/reports</text>
+  </g>
+  <g transform="translate(818,290)">
+    <rect x="0" y="0" width="94" height="40" rx="8" fill="#FFFFFF" stroke="#7B1FA2" stroke-width="1"/>
+    <text x="8" y="18" class="node-title" style="font-size:11px;">卡片解读</text>
+    <text x="8" y="30" class="node-sub" style="font-size:9px;">ai_reader</text>
+  </g>
+  <g transform="translate(712,342)">
+    <rect x="0" y="0" width="96" height="40" rx="8" fill="#FFFFFF" stroke="#7B1FA2" stroke-width="1"/>
+    <text x="8" y="18" class="node-title" style="font-size:11px;">画像引擎</text>
+    <text x="8" y="30" class="node-sub" style="font-size:9px;">v2.0自进化</text>
+  </g>
+  <g transform="translate(818,342)">
+    <rect x="0" y="0" width="94" height="40" rx="8" fill="#FFFFFF" stroke="#7B1FA2" stroke-width="1"/>
+    <text x="8" y="18" class="node-title" style="font-size:11px;">回测引擎</text>
+    <text x="8" y="30" class="node-sub" style="font-size:9px;">as_of防未</text>
+  </g>
+
+  <!-- ========== 第3层：基础设施 ========== -->
+  <rect x="24" y="468" width="912" height="156" rx="12" fill="#FFF9C4" stroke="#F9A825" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.6"/>
+  <text x="40" y="490" class="layer-title">🗄️ 基础设施层</text>
+
+  <g transform="translate(48,510)">
+    <rect x="0" y="0" width="160" height="52" rx="8" fill="#FFFFFF" stroke="#F9A825" stroke-width="1.5"/>
+    <rect x="40" y="-8" width="80" height="12" rx="4" fill="#F9A825" opacity="0.3"/>
+    <rect x="30" y="-4" width="100" height="8" rx="4" fill="#F9A825" opacity="0.2"/>
+    <text x="12" y="22" class="node-title">MySQL 3306</text>
+    <text x="12" y="38" class="node-sub">investment_compass · 20+表</text>
+  </g>
+  <g transform="translate(232,510)">
+    <rect x="0" y="0" width="160" height="52" rx="8" fill="#FFFFFF" stroke="#F9A825" stroke-width="1.5"/>
+    <rect x="40" y="-8" width="80" height="12" rx="4" fill="#F9A825" opacity="0.3"/>
+    <rect x="30" y="-4" width="100" height="8" rx="4" fill="#F9A825" opacity="0.2"/>
+    <text x="12" y="22" class="node-title">Redis 6379</text>
+    <text x="12" y="38" class="node-sub">quotes Pub/Sub + Hash</text>
+  </g>
+  <g transform="translate(416,510)">
+    <rect x="0" y="0" width="160" height="52" rx="8" fill="#FFFFFF" stroke="#F9A825" stroke-width="1.5"/>
+    <rect x="40" y="-8" width="80" height="12" rx="4" fill="#F9A825" opacity="0.3"/>
+    <rect x="30" y="-4" width="100" height="8" rx="4" fill="#F9A825" opacity="0.2"/>
+    <text x="12" y="22" class="node-title">ChromaDB</text>
+    <text x="12" y="38" class="node-sub">经验库 · bge-small-zh</text>
+  </g>
+  <g transform="translate(600,510)">
+    <rect x="0" y="0" width="180" height="52" rx="8" fill="#FFFFFF" stroke="#F9A825" stroke-width="1.5"/>
+    <text x="12" y="22" class="node-title">AkShare API</text>
+    <text x="12" y="38" class="node-sub">东财主 / 新浪备 · 断路器</text>
+  </g>
+  <g transform="translate(800,510)">
+    <rect x="0" y="0" width="108" height="52" rx="8" fill="#FFFFFF" stroke="#F9A825" stroke-width="1.5"/>
+    <text x="12" y="22" class="node-title">飞书</text>
+    <text x="12" y="38" class="node-sub">Webhook 通知</text>
+  </g>
+
+  <g transform="translate(48,580)">
+    <text x="0" y="20" class="label-sub">迁移 V001–V013 · 13 脚本</text>
+  </g>
+  <g transform="translate(232,580)">
+    <text x="0" y="20" class="label-sub">quote:{symbol} Hash 快照</text>
+  </g>
+  <g transform="translate(416,580)">
+    <text x="0" y="20" class="label-sub">三层检索 + 反例降权</text>
+  </g>
+  <g transform="translate(600,580)">
+    <text x="0" y="20" class="label-sub">A 股数据 · 限流容错</text>
+  </g>
+
+  <!-- ========== 连接线 ========== -->
+  <!-- 前端 → Java -->
+  <path d="M 180 160 L 180 180 L 110 196" fill="none" stroke="#52525B" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-c2)"/>
+  <path d="M 460 160 L 460 180 L 394 196" fill="none" stroke="#52525B" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-c2)"/>
+  <text x="238" y="184" class="conn-label">REST /api/*</text>
+  <text x="400" y="184" class="conn-label">K线/行情</text>
+
+  <!-- 前端 → Python (SSE + REST) -->
+  <path d="M 720 160 L 720 180 L 620 196" fill="none" stroke="#4B3FE3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-brand)"/>
+  <text x="618" y="184" class="conn-label" fill="#4B3FE3">SSE 流式 + REST · AI</text>
+
+  <!-- 前端 WS 客户端 → Java WS -->
+  <path d="M 778 140 L 816 140 L 816 196 L 726 196" fill="none" stroke="#27D2BF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-accent)" stroke-dasharray="3 2"/>
+  <text x="790" y="154" class="conn-label" fill="#0F766E">WS /ws/quote</text>
+
+  <!-- Java → MySQL -->
+  <path d="M 130 372 L 130 468 L 128 510" fill="none" stroke="#52525B" stroke-width="1.5" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <text x="80" y="434" class="conn-label">MyBatis-Flex</text>
+
+  <!-- Java → Redis (订阅) -->
+  <path d="M 236 372 L 236 468 L 312 510" fill="none" stroke="#52525B" stroke-width="1.5" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <text x="208" y="444" class="conn-label">订阅 quotes</text>
+
+  <!-- Python → MySQL -->
+  <path d="M 610 452 L 610 468 L 490 468 L 490 510 L 208 510" fill="none" stroke="#52525B" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+  <text x="450" y="478" class="conn-label">SQLAlchemy + aiomysql</text>
+
+  <!-- Python → Redis (发布) -->
+  <path d="M 720 452 L 720 468 L 820 468 L 820 510 L 392 510" fill="none" stroke="#27D2BF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-accent)"/>
+  <text x="740" y="484" class="conn-label" fill="#0F766E">发布 quotes · quote_publisher</text>
+
+  <!-- Python → ChromaDB -->
+  <path d="M 580 452 L 580 488 L 496 510" fill="none" stroke="#52525B" stroke-width="1.5" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <text x="486" y="504" class="conn-label">向量检索 RAG</text>
+
+  <!-- Python → AkShare -->
+  <path d="M 810 452 L 810 488 L 690 510" fill="none" stroke="#52525B" stroke-width="1.5" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <text x="730" y="500" class="conn-label">采集 A 股数据</text>
+
+  <!-- 标题 -->
+  <text x="480" y="744" text-anchor="middle" class="label-title">Investment Compass — 三层服务架构图</text>
+</svg>

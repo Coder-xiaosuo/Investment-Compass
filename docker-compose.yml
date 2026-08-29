@@ -1,0 +1,64 @@
+version: "3.8"
+
+networks:
+  finagentos-network:
+    driver: bridge
+
+services:
+  agent-service:
+    build: ./agents
+    container_name: finagentos-agent
+    ports: ["8001:8001"]
+    environment:
+      - DATABASE_URL=postgresql+psycopg2://finagentos:finagentos@db:5432/finagentos
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - QWEN_API_KEY=${QWEN_API_KEY:-}
+    volumes:
+      - ./agents:/app/agents
+      - ./data:/app/data
+    depends_on:
+      db: { condition: service_healthy }
+    networks: [finagentos-network]
+    restart: unless-stopped
+
+  audit-service:
+    build: ./agents/audit-harness
+    container_name: finagentos-audit
+    ports: ["8088:8088"]
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/finagentos
+    depends_on:
+      db: { condition: service_healthy }
+    networks: [finagentos-network]
+    restart: unless-stopped
+
+  dashboard:
+    build: ./frontend-dashboard
+    container_name: finagentos-dashboard
+    ports: ["8501:8501"]
+    environment:
+      - AGENT_API_URL=http://agent-service:8001
+    depends_on: [agent-service]
+    networks: [finagentos-network]
+    restart: unless-stopped
+
+  db:
+    image: postgres:16
+    container_name: finagentos-db
+    environment:
+      POSTGRES_DB: finagentos
+      POSTGRES_USER: finagentos
+      POSTGRES_PASSWORD: finagentos
+    ports: ["5432:5432"]
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finagentos"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [finagentos-network]
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
