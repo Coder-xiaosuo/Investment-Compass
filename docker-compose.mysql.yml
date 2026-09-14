@@ -1,0 +1,30 @@
+services:
+  mysql:
+    image: mysql:9
+    container_name: investment-compass-mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      # 与迁移前本地 MySQL 保持一致：root + 空密码（本地开发环境）
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_DATABASE: investment_compass
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --default-time-zone=+08:00
+    volumes:
+      - mysql-data:/var/lib/mysql
+      # 仅在数据卷首次初始化（为空）时执行，自动导入迁移备份
+      - ./backups/investment_compass_20260914_103821.sql:/docker-entrypoint-initdb.d/01-investment_compass.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  mysql-data:
+    name: investment-compass-mysql-data
