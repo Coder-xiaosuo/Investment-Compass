@@ -43,6 +43,16 @@ class Settings:
     QWEN_API_KEY: Optional[str] = os.getenv("QWEN_API_KEY")
     EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "text-embedding-v3")
     AKDATA_CACHE_DIR: str = os.getenv("AKDATA_CACHE_DIR", "data/market")
+    # 交易日历（K线完整性审计基准，静态文件，随仓库 pin 住）
+    TRADING_CALENDAR_PATH: str = os.getenv(
+        "TRADING_CALENDAR_PATH", "data/trading_calendar.json"
+    )
+    # 覆盖率达标阈值（%）：>= 该值判 COMPLETE。放宽可容忍停牌造成的缺口
+    KLINE_COVERAGE_COMPLETE_THRESHOLD: float = float(
+        os.getenv("KLINE_COVERAGE_COMPLETE_THRESHOLD", "99.0")
+    )
+    # 回填意图回溯起点（审计的 expected_from 默认值）
+    KLINE_BACKFILL_FROM: str = os.getenv("KLINE_BACKFILL_FROM", "2020-01-01")
     AGENT_PORT: int = int(os.getenv("AGENT_PORT", "8001"))
     AUDIT_PORT: int = int(os.getenv("AUDIT_PORT", "8088"))
     STREAMLIT_PORT: int = int(os.getenv("STREAMLIT_PORT", "8501"))
