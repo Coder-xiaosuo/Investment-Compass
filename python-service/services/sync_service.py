@@ -69,6 +69,22 @@ def _fetch_with_retry(func, symbol: str, max_retries: int = 3) -> Any:
                 raise
 
 
+def _audit_after_attempt(raw_symbol: str, *, error: str | None = None) -> None:
+    """拉取尝试后更新完整性台账（审计闭环）。
+
+    无论成功、失败还是空响应，都在 kline_coverage 留下痕迹，
+    使"限流导致的空洞"不再被静默吞掉（原实现只打日志、不记录，缺口成为黑洞）。
+
+    审计是观测行为，绝不能影响数据拉取本身：内部异常仅记日志。
+    """
+    try:
+        from services import kline_coverage_service as kcs
+
+        kcs.reconcile_symbol(_strip_suffix(raw_symbol), error=error)
+    except Exception as exc:  # pragma: no cover - 审计失败不应中断拉取
+        logger.warning("审计对账失败 %s: %s", raw_symbol, exc)
+
+
 # ── 增量同步（双源 + 断路器） ────────────────────────────────────────────────
 
 def _fetch_incremental_bars(code: str, fetch_n: int, source: str) -> list:
@@ -98,6 +114,8 @@ def sync_symbols(symbols: list[str]) -> tuple[int, list[str]]:
     errors: list[str] = []
 
     for raw_symbol in symbols:
+        # 审计闭环：无论成功/失败/空响应，finally 都会把本次结果写入完整性台账
+        audit_error: str | None = None
         try:
             code = _strip_suffix(raw_symbol)
             source = breaker.get_source()
@@ -129,6 +147,8 @@ def sync_symbols(symbols: list[str]) -> tuple[int, list[str]]:
             breaker.record_success(source)
 
             if not bars:
+                # 空响应极可能是限流：显式记入台账，不再静默跳过
+                audit_error = f"空响应，疑似限流（source={source}）"
                 logger.warning("No data for %s (source=%s)", raw_symbol, source)
                 continue
 
@@ -148,9 +168,12 @@ def sync_symbols(symbols: list[str]) -> tuple[int, list[str]]:
 
             time.sleep(1.0)
         except Exception as exc:
+            audit_error = str(exc)
             msg = f"{raw_symbol}: {exc}"
             errors.append(msg)
             logger.warning("Fetch failed for %s: %s", raw_symbol, exc)
+        finally:
+            _audit_after_attempt(raw_symbol, error=audit_error)
 
     return total_records, errors
 
@@ -243,6 +266,7 @@ def _process_single_symbol(raw_symbol: str, start_year: int, end_year: int) -> d
     task = sts.get_task(task_id)
     if task and task["status"] == "SUCCESS":
         logger.info("Skip %s: already SUCCESS (%d records)", raw_symbol, task["records_fetched"])
+        _audit_after_attempt(raw_symbol)
         return {
             "symbol": raw_symbol,
             "success": True,
@@ -261,6 +285,7 @@ def _process_single_symbol(raw_symbol: str, start_year: int, end_year: int) -> d
 
     records_fetched = task["records_fetched"] if task else 0
     first_error: str | None = None
+    empty_years: list[int] = []
 
     try:
         for year in range(resume_year, end_year + 1):
@@ -277,6 +302,10 @@ def _process_single_symbol(raw_symbol: str, start_year: int, end_year: int) -> d
                     mds.upsert_market_data(rows)
                     records_fetched += len(bars)
                     logger.info("[%s] year %d: %d bars", raw_symbol, year, len(bars))
+                else:
+                    # 空响应极可能是限流：显式记录，避免被静默跳过（原实现 if bars 直接略过）
+                    empty_years.append(year)
+                    logger.warning("[%s] year %d: 空响应（疑似限流）", raw_symbol, year)
 
                 # 更新进度
                 sts.update_progress(task_id, year, records_fetched)
@@ -291,7 +320,14 @@ def _process_single_symbol(raw_symbol: str, start_year: int, end_year: int) -> d
                 # 继续下一年（部分容错）
                 continue
 
-        # 所有年份处理完毕
+        # 所有年份处理完毕 —— 审计闭环：把本次尝试的真实结果写入台账
+        audit_error = first_error
+        if audit_error is None and empty_years:
+            shown = empty_years[:5]
+            suffix = f" 等{len(empty_years)}年" if len(empty_years) > 5 else ""
+            audit_error = f"空响应年份 {shown}{suffix}（疑似限流）"
+        _audit_after_attempt(raw_symbol, error=audit_error)
+
         if first_error:
             sts.mark_partial(task_id, end_year, records_fetched, first_error)
             return {
@@ -314,6 +350,7 @@ def _process_single_symbol(raw_symbol: str, start_year: int, end_year: int) -> d
     except Exception as exc:
         logger.error("Batch fetch failed for %s: %s", raw_symbol, exc)
         sts.mark_failed(task_id, str(exc), records_fetched)
+        _audit_after_attempt(raw_symbol, error=str(exc))
         return {
             "symbol": raw_symbol,
             "success": False,
