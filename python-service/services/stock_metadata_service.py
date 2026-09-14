@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import re
+from datetime import date, datetime
 from typing import Any, Optional
 
 from sqlalchemy import text
@@ -174,6 +175,129 @@ def init_metadata() -> dict[str, Any]:
         }
         if failed_symbols:
             result["failed_symbols"] = failed_symbols[:20]
+        return result
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
+# ── L2: 上市/退市日期（K线完整性审计基准）────────────────────────────────────
+
+def _to_date(value: Any) -> Optional[date]:
+    """归一化交易所列表中的日期值（兼容 date / datetime / 'YYYY-MM-DD' / 'YYYYMMDD'）。"""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    digits = re.sub(r"\D", "", str(value).strip())
+    if len(digits) >= 8:
+        try:
+            return date(int(digits[0:4]), int(digits[4:6]), int(digits[6:8]))
+        except ValueError:
+            return None
+    return None
+
+
+def _fetch_exchange_list_dates() -> dict[str, date]:
+    """批量拉取沪深北交易所列表 → {6位代码: 上市日期}。
+
+    三次调用（沪 1701 / 深 2901 / 北 343 行）合计约 16s，覆盖全市场，
+    用于区分"未上市"与"漏拉"。
+    """
+    import akshare as ak
+
+    result: dict[str, date] = {}
+
+    def _put(raw_code: Any, raw_date: Any) -> None:
+        digits = re.sub(r"\D", "", str(raw_code or ""))
+        code = digits[-6:] if len(digits) >= 6 else digits
+        if len(code) != 6:
+            return
+        d = _to_date(raw_date)
+        if d:
+            result[code] = d
+
+    fetchers = [
+        # 沪市需分别拉主板A股与科创板：默认调用只返回主板（1701 行），
+        # 会漏掉 616 只 688xxx，导致它们被误判为"无上市日期"而进审计黑洞
+        ("stock_info_sh_name_code(主板A股)",
+         ("证券代码", "上市日期"),
+         lambda: ak.stock_info_sh_name_code(symbol="主板A股")),
+        ("stock_info_sh_name_code(科创板)",
+         ("证券代码", "上市日期"),
+         lambda: ak.stock_info_sh_name_code(symbol="科创板")),
+        ("stock_info_sz_name_code",
+         ("A股代码", "A股上市日期"),
+         lambda: ak.stock_info_sz_name_code(symbol="A股列表")),
+        ("stock_info_bj_name_code",
+         ("证券代码", "上市日期"),
+         lambda: ak.stock_info_bj_name_code()),
+    ]
+    for name, (code_col, date_col), fn in fetchers:
+        try:
+            df = fn()
+            if df is None or df.empty:
+                logger.warning("交易所列表 %s 返回空", name)
+                continue
+            for _, row in df.iterrows():
+                _put(row.get(code_col), row.get(date_col))
+            logger.info("交易所列表 %s: %d 条", name, len(df))
+        except Exception as exc:
+            logger.warning("交易所列表 %s 拉取失败: %s", name, exc)
+
+    return result
+
+
+def sync_list_dates() -> dict[str, Any]:
+    """同步上市日期到 stock_metadata.list_date（L2 审计基准）。
+
+    仅写 list_date。delist_date 需退市数据源，接口只返回在市标的，
+    故不由此推断（避免臆造），保留 NULL 待接入退市源。
+
+    Returns:
+        统计信息，含 fetched / updated / not_in_exchange（在市列表未找到的 STOCK）。
+    """
+    list_dates = _fetch_exchange_list_dates()
+    if not list_dates:
+        raise RuntimeError("交易所列表全部拉取失败，未更新 list_date")
+
+    session = _session()
+    try:
+        params = [{"sym": sym, "d": d} for sym, d in list_dates.items()]
+        session.execute(
+            text("""
+                UPDATE stock_metadata
+                SET list_date = :d
+                WHERE symbol = :sym AND (list_date IS NULL OR list_date <> :d)
+            """),
+            params,
+        )
+        session.commit()
+
+        updated = session.execute(
+            text("SELECT COUNT(*) FROM stock_metadata WHERE list_date IS NOT NULL")
+        ).scalar() or 0
+
+        not_in_exchange = session.execute(
+            text("""
+                SELECT COUNT(*) FROM stock_metadata
+                WHERE type = 'STOCK' AND list_date IS NULL
+            """)
+        ).scalar() or 0
+
+        result = {
+            "fetched": len(list_dates),
+            "with_list_date": int(updated),
+            "stock_without_list_date": int(not_in_exchange),
+        }
+        logger.info(
+            "上市日期同步完成：交易所返回 %d 条，库内已有 list_date %d 只，STOCK 中缺失 %d 只",
+            result["fetched"], result["with_list_date"], result["stock_without_list_date"],
+        )
         return result
     except Exception:
         session.rollback()
