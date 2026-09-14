@@ -1,6 +1,7 @@
 package com.xiaosuo.investmentcompass.service;
 
 import com.mybatisflex.core.query.QueryWrapper;
+import com.xiaosuo.investmentcompass.cache.KlineCacheService;
 import com.xiaosuo.investmentcompass.cache.StockMetadataCache;
 import com.xiaosuo.investmentcompass.exception.ErrorCode;
 import com.xiaosuo.investmentcompass.exception.ThrowUtils;
@@ -47,6 +48,9 @@ public class StockService {
 
     @Resource
     private StockMetadataCache stockMetadataCache;
+
+    @Resource
+    private KlineCacheService klineCacheService;
 
     /**
      * 搜索股票
@@ -152,6 +156,34 @@ public class StockService {
             limit = 120;
         }
 
+        final String resolved = symbol;
+        final int barsLimit = limit;
+
+        List<StockKlineBar> bars;
+        if (startDate != null && endDate != null) {
+            // 日期区间组合近乎无限、命中率极低，直接穿透
+            bars = loadBars(resolved, timeframe, startDate, endDate, barsLimit);
+        } else {
+            // limit 模式是热点路径，走 Cache-Aside（Redis，Python 写库后版本号递增失效）
+            bars = klineCacheService.getOrLoad(resolved, timeframe, barsLimit,
+                    () -> loadBars(resolved, timeframe, null, null, barsLimit));
+        }
+
+        return new StockKlineResponse(resolved, timeframe, bars);
+    }
+
+    /**
+     * 从数据库加载 K 线（含周线/月线聚合）
+     *
+     * @param symbol    股票代码，含交易所后缀
+     * @param timeframe K 线周期
+     * @param startDate 开始日期，与 endDate 同时为空时按 limit 截取
+     * @param endDate   结束日期
+     * @param limit     返回的 K 线数量上限
+     * @return 按日期升序的 K 线列表
+     */
+    private List<StockKlineBar> loadBars(String symbol, String timeframe,
+                                          LocalDate startDate, LocalDate endDate, int limit) {
         // 判断是否走聚合（周线/月线从日线聚合）
         boolean isAggregated = "1w".equals(timeframe) || "1M".equals(timeframe);
         String queryTimeframe = isAggregated ? "1d" : timeframe;
@@ -170,56 +202,49 @@ public class StockService {
 
         if (!hasDateRange) {
             // 聚合场景需要更多数据，weekly/monthly 从 1d 聚合，放大 limit
-            if (isAggregated) {
-                queryWrapper.limit(limit * 5); // 5倍数据确保足够日线用于聚合
-            } else {
-                queryWrapper.limit(limit);
-            }
+            queryWrapper.limit(isAggregated ? limit * 5 : limit); // 5倍数据确保足够日线用于聚合
         }
 
         List<MarketData> list = marketDataMapper.selectListByQuery(queryWrapper);
         Collections.reverse(list); // 转为升序（聚合需要升序数据）
 
-        List<StockKlineBar> bars;
         if (isAggregated) {
             if (list.isEmpty()) {
-                bars = Collections.emptyList();
-            } else if ("1w".equals(timeframe)) {
-                bars = aggregateWeekly(list);
-            } else {
-                bars = aggregateMonthly(list);
+                return Collections.emptyList();
             }
-            // 聚合后按 limit 裁剪
-            if (bars.size() > limit) {
-                bars = bars.subList(bars.size() - limit, bars.size());
+            List<StockKlineBar> aggregated = "1w".equals(timeframe)
+                    ? aggregateWeekly(list)
+                    : aggregateMonthly(list);
+            // 聚合后按 limit 裁剪（复制为独立列表，避免持有大数组的 subList 视图）
+            if (aggregated.size() > limit) {
+                return new ArrayList<>(aggregated.subList(aggregated.size() - limit, aggregated.size()));
             }
-        } else {
-            bars = list.stream()
-                    .map(item -> {
-                        Double volumeRatio = null;
-                        Double turnoverRate = null;
-                        if (item.getVolume() != null && item.getAmount() != null && item.getAmount() > 0) {
-                            turnoverRate = item.getAmount() / 100000000; // 简易估算
-                            volumeRatio = 1.0; // 暂缺真实量比数据
-                        }
-                        return new StockKlineBar(
-                                item.getTradeDate(),
-                                item.getTsOpen(),
-                                item.getOpen(),
-                                item.getHigh(),
-                                item.getLow(),
-                                item.getClose(),
-                                item.getVolume(),
-                                item.getAmount(),
-                                item.getPctChg(),
-                                item.getClosed(),
-                                volumeRatio,
-                                turnoverRate);
-                    })
-                    .collect(Collectors.toList());
+            return aggregated;
         }
 
-        return new StockKlineResponse(symbol, timeframe, bars);
+        return list.stream()
+                .map(item -> {
+                    Double volumeRatio = null;
+                    Double turnoverRate = null;
+                    if (item.getVolume() != null && item.getAmount() != null && item.getAmount() > 0) {
+                        turnoverRate = item.getAmount() / 100000000; // 简易估算
+                        volumeRatio = 1.0; // 暂缺真实量比数据
+                    }
+                    return new StockKlineBar(
+                            item.getTradeDate(),
+                            item.getTsOpen(),
+                            item.getOpen(),
+                            item.getHigh(),
+                            item.getLow(),
+                            item.getClose(),
+                            item.getVolume(),
+                            item.getAmount(),
+                            item.getPctChg(),
+                            item.getClosed(),
+                            volumeRatio,
+                            turnoverRate);
+                })
+                .collect(Collectors.toList());
     }
 
     /**

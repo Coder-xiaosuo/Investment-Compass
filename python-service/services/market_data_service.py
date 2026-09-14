@@ -7,6 +7,7 @@ from typing import Any, Optional
 
 from sqlalchemy import text
 
+from services import kline_cache_service as kcs
 from shared.config import settings
 from shared.data_filter import filter_kline_bars
 from sqlalchemy import create_engine
@@ -29,10 +30,12 @@ def _session() -> Session:
 
 
 def get_latest_market_date(symbol: str) -> Optional[datetime.date]:
+    # 必带 timeframe：索引 (symbol, timeframe, trade_date) 下，仅按 symbol 过滤会
+    # 失去 MIN/MAX 优化（需扫该标的所有周期行），补等值条件后恢复 O(1)
     session = _session()
     try:
         row = session.execute(
-            text("SELECT MAX(trade_date) FROM market_data WHERE symbol = :sym"),
+            text("SELECT MAX(trade_date) FROM market_data WHERE symbol = :sym AND timeframe = '1d'"),
             {"sym": symbol},
         ).fetchone()
         if row and row[0]:
@@ -68,6 +71,10 @@ def upsert_market_data(rows: list[dict[str, Any]]) -> None:
         raise
     finally:
         session.close()
+
+    # 缓存失效信号：必须在 commit 之后发出，否则 Java 可能抢先回源读到旧值并
+    # 写回缓存（read-modify-write 竞态）。这里调用会吞掉自身异常，不影响写入。
+    kcs.bump_kline_versions(row.get("symbol") for row in rows)
 
 
 def bars_to_rows(symbol: str, bars: list) -> list[dict[str, Any]]:
@@ -118,11 +125,12 @@ def get_realtime_quote(symbols: list[str]) -> list[dict[str, Any]]:
                     FROM market_data m1
                     LEFT JOIN market_data m2
                         ON m2.symbol = m1.symbol
+                        AND m2.timeframe = '1d'
                         AND m2.trade_date = (
                             SELECT MAX(trade_date) FROM market_data
-                            WHERE symbol = m1.symbol AND trade_date < m1.trade_date
+                            WHERE symbol = m1.symbol AND timeframe = '1d' AND trade_date < m1.trade_date
                         )
-                    WHERE m1.symbol = :sym
+                    WHERE m1.symbol = :sym AND m1.timeframe = '1d'
                     ORDER BY m1.trade_date DESC
                     LIMIT 1
                 """),
@@ -165,7 +173,7 @@ def get_kline_history(
         "SELECT symbol, trade_date, timeframe, ts_open, open, high, low, close, "
         "volume, amount, pct_chg, closed "
         "FROM market_data "
-        "WHERE symbol = :sym AND LOWER(timeframe) = LOWER(:tf)"
+        "WHERE symbol = :sym AND timeframe = :tf"
     )
     params: dict[str, Any] = {"sym": symbol, "tf": timeframe, "limit": limit}
     if start_date:

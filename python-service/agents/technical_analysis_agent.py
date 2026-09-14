@@ -765,7 +765,7 @@ def _fetch_recent_bars(symbol: str, limit: int = 60) -> list[dict]:
     sql = (
         "SELECT trade_date, open, high, low, close, volume "
         "FROM market_data "
-        "WHERE symbol = :sym AND LOWER(timeframe) = '1d' AND closed = TRUE "
+        "WHERE symbol = :sym AND timeframe = '1d' AND closed = TRUE "
         "ORDER BY trade_date DESC LIMIT :limit"
     )
     session = Session(_engine)
