@@ -1,12 +1,14 @@
 package com.xiaosuo.investmentcompass.service;
 
 import com.mybatisflex.core.query.QueryWrapper;
+import com.xiaosuo.investmentcompass.cache.StockMetadataCache;
 import com.xiaosuo.investmentcompass.exception.ErrorCode;
 import com.xiaosuo.investmentcompass.exception.ThrowUtils;
 import com.xiaosuo.investmentcompass.mapper.MarketDataMapper;
 import com.xiaosuo.investmentcompass.mapper.MonitorMapper;
 import com.xiaosuo.investmentcompass.mapper.StockMetadataMapper;
 import com.xiaosuo.investmentcompass.model.*;
+import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 
 import java.time.DayOfWeek;
@@ -18,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -30,26 +33,26 @@ import java.util.stream.Collectors;
 @Service
 public class StockService {
 
-    private final StockMetadataMapper stockMetadataMapper;
+    @Resource
+    private StockMetadataMapper stockMetadataMapper;
 
-    private final MarketDataMapper marketDataMapper;
+    @Resource
+    private MarketDataMapper marketDataMapper;
 
-    private final MonitorMapper monitorMapper;
+    @Resource
+    private MonitorMapper monitorMapper;
 
-    private final IndicatorService indicatorService;
+    @Resource
+    private IndicatorService indicatorService;
 
-    public StockService(StockMetadataMapper stockMetadataMapper, MarketDataMapper marketDataMapper,
-                        MonitorMapper monitorMapper, IndicatorService indicatorService) {
-        this.stockMetadataMapper = stockMetadataMapper;
-        this.marketDataMapper = marketDataMapper;
-        this.monitorMapper = monitorMapper;
-        this.indicatorService = indicatorService;
-    }
+    @Resource
+    private StockMetadataCache stockMetadataCache;
 
     /**
      * 搜索股票
      * <p>
-     * 根据关键词模糊匹配股票代码或股票名称，返回搜索结果。
+     * 基于本地缓存的整表快照做内存匹配（等价于原 symbol/stock_name 的左模糊 LIKE），
+     * 避免每次请求回库全表扫描。
      *
      * @param keyword 搜索关键词
      * @param limit   返回结果数量上限
@@ -62,18 +65,23 @@ public class StockService {
             limit = 10;
         }
 
-        QueryWrapper queryWrapper = QueryWrapper.create()
-                .where("symbol LIKE ? OR stock_name LIKE ?",
-                        "%" + keyword + "%", "%" + keyword + "%")
-                .limit(limit);
+        String lowerKeyword = keyword.toLowerCase(Locale.ROOT);
 
-        List<StockMetadata> list = stockMetadataMapper.selectListByQuery(queryWrapper);
-
-        return list.stream()
+        return stockMetadataCache.getAll().stream()
+                .filter(item -> containsIgnoreCase(item.getSymbol(), lowerKeyword)
+                        || containsIgnoreCase(item.getStockName(), lowerKeyword))
+                .limit(limit)
                 .map(item -> new StockSearchItem(
                         item.getSymbol(),
                         item.getStockName()))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * 大小写不敏感的子串匹配（对齐 utf8mb4_0900_ai_ci 的 LIKE 行为）
+     */
+    private static boolean containsIgnoreCase(String value, String lowerKeyword) {
+        return value != null && value.toLowerCase(Locale.ROOT).contains(lowerKeyword);
     }
 
     /**
@@ -109,17 +117,14 @@ public class StockService {
     /**
      * 补全股票代码后缀
      * <p>
-     * 若 symbol 不含交易所后缀，则从 stock_metadata 查询补全。
+     * 若 symbol 不含交易所后缀，则从本地缓存的品种快照中按前缀查找补全。
      */
     private String resolveSymbol(String symbol) {
         if (symbol.contains(".")) {
             return symbol;
         }
-        QueryWrapper qw = QueryWrapper.create()
-                .where("symbol LIKE ?", symbol + "%")
-                .limit(1);
-        StockMetadata meta = stockMetadataMapper.selectOneByQuery(qw);
-        return meta != null ? meta.getSymbol() : symbol;
+        String resolved = stockMetadataCache.findSymbolByPrefix(symbol);
+        return resolved != null ? resolved : symbol;
     }
 
     /**

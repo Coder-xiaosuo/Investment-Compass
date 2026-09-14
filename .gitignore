@@ -47,6 +47,7 @@ logs/
 *.log
 dump.rdb
 chroma_db/
+backups/
 
 ### OS ###
 .DS_Store
