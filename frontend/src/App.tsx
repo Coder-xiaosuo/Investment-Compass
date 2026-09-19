@@ -2,7 +2,8 @@ import { Component, useState, useEffect, useMemo, useCallback, useRef } from 're
 import type { ReactNode } from 'react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { useChatApi } from '@/hooks/useChatApi'
-import { useChatStream } from '@/hooks/useChatStream'
+import { useConversationStream } from '@/hooks/useChatStream'
+import { conversationStreamStore } from '@/lib/conversationStreamStore'
 import { useStyleProfile, type RadarProfile } from '@/hooks/useStyleProfile'
 import { usePreferences, type PreferencesData } from '@/hooks/usePreferences'
 import { StyleQuizModal } from '@/components/style/StyleQuizModal'
@@ -14,22 +15,6 @@ export default function App() {
   const { createConversation, listConversations, getMessages, archiveConversation, deleteConversation } = useChatApi()
   const { fetchProfile } = useStyleProfile()
   const { fetchPreferences } = usePreferences()
-  const {
-    sendStream,
-    cancelStream,
-    resetStream,
-    resume,
-    streamText,
-    thinkingText,
-    citations,
-    subagentCards,
-    todos,
-    isStreaming,
-    isInterrupted,
-    interruptData,
-    isResuming,
-    contextTokens,
-  } = useChatStream()
   const [mode, setMode] = useState<AppMode>('analysis')
   const [activeTab, setActiveTab] = useState<MainTab>('technical')
   const [symbol, setSymbol] = useState<string>('600519')
@@ -40,8 +25,10 @@ export default function App() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
-  /** 程序性选中会话（发送流程自动建会话）时跳过 cancelStream/resetStream，避免中止刚发出的流 */
-  const skipStreamResetRef = useRef(false)
+  /** 当前选中会话 id 的实时镜像：流式结束后的异步回调据此判断是否仍停留在该会话 */
+  const selectedIdRef = useRef<string | null>(null)
+  /** 当前会话的流式展示状态（存于组件外的会话级仓库，切换会话/卸载不中止流） */
+  const streamState = useConversationStream(selectedId)
   // 投资画像（右侧栏模块 + 左下角气泡）
   const [profile, setProfile] = useState<RadarProfile | null>(null)
   const [profileLoading, setProfileLoading] = useState(true)
@@ -149,22 +136,28 @@ export default function App() {
       .catch(() => {})
   }, [fetchProfile, fetchPreferences])
 
-  // 切换选中会话时加载消息（并取消/清空上一轮流式状态）
+  // 同步选中会话镜像（供流式结束后的异步回调判断回填目标）
   useEffect(() => {
-    // 发送流程程序性选中（自动建会话）：跳过取消/重置/拉取，流结束后统一刷新
-    if (skipStreamResetRef.current) {
-      skipStreamResetRef.current = false
-      return
-    }
-    cancelStream()
-    resetStream()
+    selectedIdRef.current = selectedId
+  }, [selectedId])
+
+  // 切换选中会话时加载消息；不中止任何会话的流（流式状态由会话级仓库独立持有，切回即可见）
+  useEffect(() => {
     if (!selectedId) {
       setMessages([])
       return
     }
+    let cancelled = false
     getMessages(selectedId)
-      .then(setMessages)
-      .catch(() => setMessages([]))
+      .then((list) => {
+        if (!cancelled) setMessages(list)
+      })
+      .catch(() => {
+        if (!cancelled) setMessages([])
+      })
+    return () => {
+      cancelled = true
+    }
   }, [selectedId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 从消息中提取最近一条 composite_decision 的 card_data（附带消息时间戳供目标价卡标注预测节点）
@@ -180,22 +173,22 @@ export default function App() {
     return null
   }, [messages])
 
-  // 流式展示状态（有内容或 HITL 中断时非 null）
+  // 流式展示状态（当前会话有内容 / 生成中 / HITL 中断时非 null）
   const streaming = useMemo<StreamDisplay | null>(() => {
-    if (!isStreaming && !streamText && !thinkingText && subagentCards.length === 0 && !isInterrupted && todos.length === 0) return null
-    return {
-      text: streamText,
-      thinkingText,
-      citations,
-      subagentCards,
-      todos,
-      isStreaming,
-      isInterrupted,
-      interruptData,
-      isResuming,
-      contextTokens,
+    const s = streamState
+    if (
+      !s.isStreaming &&
+      !s.text &&
+      !s.thinkingText &&
+      s.subagentCards.length === 0 &&
+      !s.isInterrupted &&
+      !s.todos?.length &&
+      !s.isResuming
+    ) {
+      return null
     }
-  }, [streamText, thinkingText, citations, subagentCards, todos, isStreaming, isInterrupted, interruptData, isResuming, contextTokens])
+    return s
+  }, [streamState])
 
   // 卡片「AI 分析」→ 打开右侧对话并发送预设提示词
   const handleAiAnalyze = useCallback(
@@ -215,8 +208,7 @@ export default function App() {
 
   const handleNewConversation = () => {
     // 「新建对话」= 回到欢迎页（不创建会话）；欢迎页实际发消息时才自动建会话
-    cancelStream()
-    resetStream()
+    // 不中止其它会话的流：任务在后台继续，切回该会话仍可见流式输出
     setMessages([])
     setSelectedId(null)
   }
@@ -245,6 +237,8 @@ export default function App() {
   }
 
   const handleDeleteConversation = async (id: string) => {
+    // 显式销毁会话：唯一需要中止该会话流的场景
+    conversationStreamStore.cancel(id)
     try {
       await deleteConversation(id)
       if (selectedId === id) {
@@ -264,9 +258,6 @@ export default function App() {
       try {
         const conv = await createConversation()
         setConversations((prev) => [conv, ...prev])
-        // 程序性选中：标记跳过 useEffect[selectedId] 的 cancelStream/resetStream，
-        // 避免中止刚发出的流式请求；消息在流结束后统一刷新
-        skipStreamResetRef.current = true
         setSelectedId(conv.id)
         convId = conv.id
       } catch {
@@ -284,34 +275,30 @@ export default function App() {
     }
     setMessages((prev) => [...prev, tempUserMsg])
 
-    // 流式发送；若以 HITL 中断结束则保留确认卡片，不做消息刷新
-    const interrupted = await sendStream(convId, content)
+    // 流式发送：状态写入会话级仓库（切换会话不受影响）；
+    // 若以 HITL 中断结束则保留确认卡片，不清空该会话的流式状态
+    const interrupted = await conversationStreamStore.start(convId, content)
     if (interrupted) return
 
-    resetStream()
-    try {
-      const fresh = await getMessages(convId)
-      setMessages(fresh)
-    } catch {
-      // 刷新失败则保留乐观消息与流式展示
-    }
+    // 落库后刷新消息：仅当用户仍停留在该会话时回填，避免覆盖其它会话的消息
+    const fresh = await getMessages(convId).catch(() => null)
+    if (fresh && selectedIdRef.current === convId) setMessages(fresh)
+    conversationStreamStore.clear(convId)
     // 首条消息后标题/时间戳更新，同步会话列表
     await refreshConversations()
   }
 
   // HITL resume：提交用户决策并续流；续流结束后刷新为后端落库消息
   const handleResume = async (decisions: Decision[]) => {
-    if (!selectedId) return
-    const stillInterrupted = await resume(decisions)
+    const convId = selectedIdRef.current
+    if (!convId) return
+    const stillInterrupted = await conversationStreamStore.resume(convId, decisions)
     if (stillInterrupted) return
 
-    resetStream()
-    try {
-      const fresh = await getMessages(selectedId)
-      setMessages(fresh)
-    } catch {
-      // 刷新失败则保留流式展示
-    }
+    // 落库后刷新消息：仅当用户仍停留在该会话时回填
+    const fresh = await getMessages(convId).catch(() => null)
+    if (fresh && selectedIdRef.current === convId) setMessages(fresh)
+    conversationStreamStore.clear(convId)
     await refreshConversations()
   }
 

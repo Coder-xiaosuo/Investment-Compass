@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Check, ChevronDown, Eye, EyeOff, Loader2, Save, X, AlertCircle, Bot, Bell, Sliders, Cpu, Wand2, MessageSquarePlus, RefreshCw } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Check, Eye, EyeOff, Loader2, Save, X, AlertCircle, Bot, Bell, Sliders, Cpu, Wand2, MessageSquarePlus, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSettingsApi } from '@/hooks/useSettingsApi'
 import type {

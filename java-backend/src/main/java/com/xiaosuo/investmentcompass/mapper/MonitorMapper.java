@@ -55,7 +55,7 @@ public interface MonitorMapper extends BaseMapper<DataQualityIssue> {
             "SELECT * FROM data_quality_issue",
             "WHERE 1 = 1",
             "<if test='status != null and status != \"\"'>",
-            "  AND status = #{status}",
+            "  AND status = #{ 。 }",
             "</if>",
             "<if test='issueType != null and issueType != \"\"'>",
             "  AND issue_type = #{issueType}",

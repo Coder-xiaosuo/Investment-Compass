@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { History, MessageSquarePlus, X, Pencil, SendHorizonal, Loader2 } from 'lucide-react'
 import { useChatApi } from '@/hooks/useChatApi'
-import { useChatStream } from '@/hooks/useChatStream'
+import { useConversationStream } from '@/hooks/useChatStream'
+import { conversationStreamStore } from '@/lib/conversationStreamStore'
 import { Markdown } from '@/components/chat/Markdown'
 import { useThrottledValue } from '@/hooks/useThrottledValue'
 import type { ChatMessage, Conversation } from '@/types'
@@ -21,11 +22,14 @@ interface RightChatPanelProps {
  */
 export function RightChatPanel({ onClose, pendingPrompt, onPromptConsumed }: RightChatPanelProps) {
   const { createConversation, listConversations, renameConversation, getMessages } = useChatApi()
-  const { sendStream, cancelStream, resetStream, streamText, subagentCards, isStreaming } = useChatStream()
 
   const [convs, setConvs] = useState<Conversation[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
+  // 流式状态按会话隔离存放于组件外：切换面板会话不中止流，切回即可见累积输出
+  const { text: streamText, subagentCards, isStreaming } = useConversationStream(selectedId)
+  /** 当前选中会话 id 的实时镜像：流式结束后的异步回调据此判断是否仍停留在该会话 */
+  const selectedIdRef = useRef<string | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [titleDraft, setTitleDraft] = useState('')
@@ -56,15 +60,26 @@ export function RightChatPanel({ onClose, pendingPrompt, onPromptConsumed }: Rig
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 切换会话时加载消息
+  // 同步选中会话镜像（供流式结束后的异步回调判断回填目标）
   useEffect(() => {
-    cancelStream()
-    resetStream()
+    selectedIdRef.current = selectedId
+  }, [selectedId])
+
+  // 切换会话时加载消息；不中止其它会话的流
+  useEffect(() => {
     setMessages([])
     if (!selectedId) return
+    let cancelled = false
     getMessages(selectedId)
-      .then(setMessages)
-      .catch(() => setMessages([]))
+      .then((list) => {
+        if (!cancelled) setMessages(list)
+      })
+      .catch(() => {
+        if (!cancelled) setMessages([])
+      })
+    return () => {
+      cancelled = true
+    }
   }, [selectedId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 滚动到底部
@@ -78,15 +93,13 @@ export function RightChatPanel({ onClose, pendingPrompt, onPromptConsumed }: Rig
   }, [listConversations])
 
   const handleNew = useCallback(async () => {
-    cancelStream()
-    resetStream()
     setHistoryOpen(false)
     setMessages([])
     const conv = await createConversation(undefined, 'panel').catch(() => null)
     if (!conv) return
     setConvs((prev) => [conv, ...prev])
     setSelectedId(conv.id)
-  }, [createConversation, cancelStream, resetStream])
+  }, [createConversation])
 
   const handleSelect = useCallback(
     (id: string) => {
@@ -117,13 +130,14 @@ export function RightChatPanel({ onClose, pendingPrompt, onPromptConsumed }: Rig
         createdAt: new Date().toISOString(),
       }
       setMessages((prev) => [...prev, temp])
-      await sendStream(selectedId, content)
-      resetStream()
+      await conversationStreamStore.start(selectedId, content)
+      // 仅当用户仍停留在该会话时回填，避免覆盖其它会话的消息
       const fresh = await getMessages(selectedId).catch(() => null)
-      if (fresh) setMessages(fresh)
+      if (fresh && selectedIdRef.current === selectedId) setMessages(fresh)
+      conversationStreamStore.clear(selectedId)
       await refreshConvs()
     },
-    [selectedId, messages.length, sendStream, resetStream, getMessages, refreshConvs],
+    [selectedId, messages.length, getMessages, refreshConvs],
   )
 
   const handleSend = useCallback(async () => {

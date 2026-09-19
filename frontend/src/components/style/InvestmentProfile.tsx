@@ -26,7 +26,7 @@ const EMPTY_POINTS: RadarPoint[] = [
 ]
 
 /**
- * 右侧栏「投资画像」模块 — 替换原"对话上下文"占位。
+ * 右侧栏「投资画像」模块
  * 未测试：标题 + 空六维表 + 开始测试按钮（简洁引导）；
  * 已测试：六维雷达图 + 概要 + 维度条 + 重新测试。
  */
@@ -38,10 +38,8 @@ export function InvestmentProfile({ profile, loading, onStartQuiz, onRetakeQuiz,
       {/* 标题 */}
       <div className="shrink-0 flex items-center justify-between px-4 py-2">
         <div className="flex items-center gap-1.5">
-          <span className="text-xs font-medium text-[var(--color-text-primary)]">投资画像</span>
-          <span className="rounded bg-[var(--color-accent-soft)] px-1.5 py-0.5 text-xs text-[var(--color-accent)]">
-            6 维度
-          </span>
+          <span className="text-xs font-medium text-[var(--color-text-primary)]">个人投资画像</span>
+          <span className="rounded bg-[var(--color-accent-soft)] px-1.5 py-0.5 text-xs text-[var(--color-accent)]">六维</span>
         </div>
         {tested && (
           <button
@@ -106,18 +104,18 @@ export function InvestmentProfile({ profile, loading, onStartQuiz, onRetakeQuiz,
           <div className="shrink-0 rounded-lg bg-[var(--color-bg-subtle)] px-3 py-3">
             <p className="text-center text-base leading-relaxed text-[var(--color-text-secondary)]">
               <Sparkles className="inline h-3.5 w-3.5 mr-1 -mt-0.5 text-[var(--color-accent)]" />
-              快来看看你的投资风格，让我们能更好地帮助你投资
+              快来看看你的投资风格，我们能更好地帮助你投资
             </p>
           </div>
-          <button
-            onClick={onStartQuiz}
-            className="mt-4 shrink-0 rounded-full bg-[var(--color-accent)] px-6 py-2 text-base font-medium text-white hover:bg-[var(--color-accent-hover)] transition-colors self-center"
-          >
-            开始测试
-          </button>
           <div className="flex w-full items-center justify-center mt-1">
             <RadarChart points={EMPTY_POINTS} empty className="w-full max-w-[280px] max-h-[280px]" />
           </div>
+            <button
+                onClick={onStartQuiz}
+                className="mt-4 shrink-0 rounded-full bg-[var(--color-accent)] px-6 py-2 text-base font-medium text-white hover:bg-[var(--color-accent-hover)] transition-colors self-center"
+            >
+                开始测试
+            </button>
 
           {/* 功能说明 */}
           <div className="mt-4 shrink-0 rounded-lg border border-[var(--color-border-light)] bg-white px-4 py-4">
