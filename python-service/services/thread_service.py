@@ -126,6 +126,16 @@ def mark_done(thread_id: str) -> bool:
     return _update_status(thread_id, "DONE")
 
 
+def mark_cancelled(thread_id: str) -> bool:
+    """将线程标记为 CANCELLED（客户端断连，本轮未跑完）。
+
+    与 INTERRUPTED 严格区分：CANCELLED 是「非 HITL 的中途终止」，
+    不能作为 resume 目标，因此 get_resumable_thread / get_latest_interrupted
+    只认 INTERRUPTED，不会误取到断连线程。
+    """
+    return _update_status(thread_id, "CANCELLED")
+
+
 def _update_status(thread_id: str, status: str) -> bool:
     session = _session()
     try:

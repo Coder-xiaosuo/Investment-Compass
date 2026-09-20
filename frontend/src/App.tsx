@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { useChatApi } from '@/hooks/useChatApi'
 import { useConversationStream } from '@/hooks/useChatStream'
-import { conversationStreamStore } from '@/lib/conversationStreamStore'
+import { conversationStreamStore, STREAM_RECONCILE_DELAY_MS } from '@/lib/conversationStreamStore'
 import { useStyleProfile, type RadarProfile } from '@/hooks/useStyleProfile'
 import { usePreferences, type PreferencesData } from '@/hooks/usePreferences'
 import { StyleQuizModal } from '@/components/style/StyleQuizModal'
@@ -27,6 +27,8 @@ export default function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   /** 当前选中会话 id 的实时镜像：流式结束后的异步回调据此判断是否仍停留在该会话 */
   const selectedIdRef = useRef<string | null>(null)
+  /** 最近一次发送/续流前的本地 assistant 条数：判断后端是否已落库本轮消息 */
+  const assistantCountRef = useRef(0)
   /** 当前会话的流式展示状态（存于组件外的会话级仓库，切换会话/卸载不中止流） */
   const streamState = useConversationStream(selectedId)
   // 投资画像（右侧栏模块 + 左下角气泡）
@@ -183,7 +185,8 @@ export default function App() {
       s.subagentCards.length === 0 &&
       !s.isInterrupted &&
       !s.todos?.length &&
-      !s.isResuming
+      !s.isResuming &&
+      !s.outcome
     ) {
       return null
     }
@@ -237,8 +240,8 @@ export default function App() {
   }
 
   const handleDeleteConversation = async (id: string) => {
-    // 显式销毁会话：唯一需要中止该会话流的场景
-    conversationStreamStore.cancel(id)
+    // 会话被删除：彻底丢弃该会话的流（中止 + 清空展示状态）
+    conversationStreamStore.discard(id)
     try {
       await deleteConversation(id)
       if (selectedId === id) {
@@ -250,6 +253,35 @@ export default function App() {
       // silent
     }
   }
+
+  /**
+   * 流收尾对账：延迟等待后端落库后刷新消息。
+   *
+   * 后端在 generator 收尾时才落库（正常结束 / 断连 finally 都一样），
+   * 立即拉取会读不到本轮助手消息，故先延迟。
+   * - 仅当用户仍停留在该会话时回填，避免覆盖其它会话的消息；
+   * - 仅当后端确实落库了本轮助手消息（assistant 条数增加）才清空流式状态，
+   *   否则保留内存内容与 outcome 提示，避免「停止后内容反而消失」。
+   */
+  const reconcileAfterStreamEnd = useCallback(
+    async (convId: string, baselineAssistantCount: number) => {
+      await new Promise((resolve) => setTimeout(resolve, STREAM_RECONCILE_DELAY_MS))
+      const fresh = await getMessages(convId).catch(() => null)
+      if (!fresh) return
+      if (selectedIdRef.current === convId) setMessages(fresh)
+      const persisted = fresh.filter((m) => m.role === 'assistant').length > baselineAssistantCount
+      if (persisted) conversationStreamStore.clear(convId)
+    },
+    [getMessages],
+  )
+
+  /** 停止生成：中止当前会话的流（已产出内容保留），随后延迟对账 */
+  const handleStopStream = useCallback(() => {
+    const convId = selectedIdRef.current
+    if (!convId) return
+    conversationStreamStore.cancel(convId)
+    void reconcileAfterStreamEnd(convId, assistantCountRef.current)
+  }, [reconcileAfterStreamEnd])
 
   const handleSendMessage = async (content: string) => {
     // 无会话时自动新建（欢迎页直接输入的场景）
@@ -264,6 +296,9 @@ export default function App() {
         return
       }
     }
+    // 对账基准：本地已落库的 assistant 条数（用于判断本轮是否落库成功）
+    const baselineAssistantCount = messages.filter((m) => m.role === 'assistant').length
+    assistantCountRef.current = baselineAssistantCount
     // 乐观插入用户消息（临时 id，流结束后刷新为真实消息）
     const tempUserMsg: ChatMessage = {
       id: `tmp-${Date.now()}`,
@@ -280,25 +315,21 @@ export default function App() {
     const interrupted = await conversationStreamStore.start(convId, content)
     if (interrupted) return
 
-    // 落库后刷新消息：仅当用户仍停留在该会话时回填，避免覆盖其它会话的消息
-    const fresh = await getMessages(convId).catch(() => null)
-    if (fresh && selectedIdRef.current === convId) setMessages(fresh)
-    conversationStreamStore.clear(convId)
+    await reconcileAfterStreamEnd(convId, baselineAssistantCount)
     // 首条消息后标题/时间戳更新，同步会话列表
     await refreshConversations()
   }
 
-  // HITL resume：提交用户决策并续流；续流结束后刷新为后端落库消息
+  // HITL resume：提交用户决策并续流；续流结束后刷为后端落库消息
   const handleResume = async (decisions: Decision[]) => {
     const convId = selectedIdRef.current
     if (!convId) return
+    const baselineAssistantCount = messages.filter((m) => m.role === 'assistant').length
+    assistantCountRef.current = baselineAssistantCount
     const stillInterrupted = await conversationStreamStore.resume(convId, decisions)
     if (stillInterrupted) return
 
-    // 落库后刷新消息：仅当用户仍停留在该会话时回填
-    const fresh = await getMessages(convId).catch(() => null)
-    if (fresh && selectedIdRef.current === convId) setMessages(fresh)
-    conversationStreamStore.clear(convId)
+    await reconcileAfterStreamEnd(convId, baselineAssistantCount)
     await refreshConversations()
   }
 
@@ -325,6 +356,7 @@ export default function App() {
         messages={messages}
         streaming={streaming}
         onSendMessage={handleSendMessage}
+        onStopStream={handleStopStream}
         onResume={handleResume}
         latestCardData={latestCardData}
         profile={profile}

@@ -6,15 +6,20 @@ import { QuickEntryPanel } from './QuickEntryPanel'
 import { SubagentCard } from './SubagentCard'
 import { HITLConfirmCard } from './HITLConfirmCard'
 import { Markdown } from './Markdown'
+import { StreamOutcomeNotice, StreamStatusBar } from './StreamStatusBar'
 import { useThrottledValue } from '@/hooks/useThrottledValue'
-import { ChevronDown, Link2, PanelRight } from 'lucide-react'
+import { ChevronDown, Link2, PanelRight, SquareStop } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface ChatViewProps {
   conversationTitle: string | null
+  /** 当前会话 id（流式等待提示条据此读取该会话的时序元信息） */
+  conversationId: string | null
   messages: ChatMessage[]
   streaming: StreamDisplay | null
   onSendMessage: (content: string) => void
+  /** 停止生成：中止当前会话的流，已产出内容保留 */
+  onStop?: () => void
   /** HITL 中断后提交用户决策（resume 续流） */
   onResume?: (decisions: Decision[]) => void
   /** 右侧面板开关（分析模式复盘面板） */
@@ -222,7 +227,7 @@ function SourcesBlock({ citations, onOpenSource }: { citations: Citation[]; onOp
   )
 }
 
-export function ChatView({ conversationTitle, messages, streaming, onSendMessage, onResume, panelOpen, onPanelToggle, onOpenSource }: ChatViewProps) {
+export function ChatView({ conversationTitle, conversationId, messages, streaming, onSendMessage, onStop, onResume, panelOpen, onPanelToggle, onOpenSource }: ChatViewProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
 
   // 新消息、流式内容或中断卡片出现时自动滚到底部
@@ -316,6 +321,12 @@ export function ChatView({ conversationTitle, messages, streaming, onSendMessage
                   )}
                 </>
               )}
+              {/* 生成中：中立等待提示（不判定断连） */}
+              {streaming?.isStreaming && conversationId && (
+                <StreamStatusBar conversationId={conversationId} />
+              )}
+              {/* 已停止 / 未正常结束：内容保留提示 */}
+              {!streaming?.isStreaming && <StreamOutcomeNotice outcome={streaming?.outcome} />}
               <div ref={bottomRef} />
             </div>
           )}
@@ -323,8 +334,21 @@ export function ChatView({ conversationTitle, messages, streaming, onSendMessage
       </div>
 
       {/* 输入框 */}
-      <div className="flex min-h-[16.67vh] items-center justify-center bg-transparent px-6">
+      <div className="flex min-h-[16.67vh] flex-col items-center justify-center bg-transparent px-6">
         <div className="w-full max-w-[720px]">
+          {/* 生成中：停止生成（中止该会话的流，已产出内容保留） */}
+          {streaming?.isStreaming && onStop && (
+            <div className="mb-2 flex justify-center">
+              <button
+                onClick={onStop}
+                className="flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-bg-surface)] px-3 py-1 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-danger)] hover:text-[var(--color-danger)]"
+                title="停止生成（已产出的内容会保留）"
+              >
+                <SquareStop className="h-3.5 w-3.5" />
+                停止生成
+              </button>
+            </div>
+          )}
           <InputArea onSend={onSendMessage} disabled={!!streaming?.isStreaming} />
         </div>
       </div>

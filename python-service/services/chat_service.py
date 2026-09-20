@@ -495,6 +495,91 @@ def _update_context_tokens(conv_id: int, context_tokens: int) -> None:
         session.close()
 
 
+def _persist_assistant_turn(
+    conv_id: int,
+    full_content: str,
+    trace: list[dict],
+    subagent_result: dict | None,
+    card_symbol: str,
+    card_stock_name: str,
+    card_subagent: str,
+    context_tokens: Optional[int],
+    usage_total_tokens: Optional[int],
+) -> bool:
+    """落库助手消息（含复合卡片）、上下文占用与决策报告。
+
+    **全同步实现**：正常结束与「客户端断连」两条路径共用。断连路径在
+    asyncio.CancelledError 的 finally 中调用，此时任何 await 都会被立即取消，
+    因此这里刻意不使用 await。
+
+    Returns:
+        是否实际落库了助手消息（无内容时返回 False，调用方据此决定后续动作）。
+    """
+    if not full_content:
+        return False
+
+    content_type = "text"
+    card_data = None
+    if subagent_result or trace:
+        content_type = "composite_decision"
+        # trace_id 由 TA 子 Agent 一次生成，随 subagent_result 回传，
+        # 用于报告文件幂等命名与前端定位同一次决策
+        card_data = _build_composite_card_data(
+            subagent_result, trace, card_symbol, card_stock_name, card_subagent
+        )
+
+    _insert_message(
+        conv_id,
+        "assistant",
+        full_content,
+        content_type,
+        card_data=card_data,
+        # 优先用真实模型 total_tokens（含子 Agent 往返），降级用文本估算
+        token_count=usage_total_tokens or _estimate_tokens(full_content),
+    )
+
+    # 落库真实上下文占用（最后一次模型调用的 input_tokens）
+    if context_tokens is not None:
+        try:
+            _update_context_tokens(conv_id, context_tokens)
+        except Exception as e:
+            logger.warning("更新 context_tokens 失败: %s", e)
+
+    # 报告落盘（失败仅告警）；用稳定 trace_id 命名保证重放收敛
+    if content_type == "composite_decision" and card_data:
+        try:
+            from services.report_service import write_decision_report
+            write_decision_report(full_content, card_data, card_data.get("trace_id"))
+        except Exception:
+            logger.warning("write_decision_report failed", exc_info=True)
+
+    return True
+
+
+def _finalize_cancelled_stream(thread_id: str | None, interrupted: bool) -> None:
+    """客户端断连收尾：更新线程状态（全同步，可在 finally 中调用）。
+
+    - 已产出 HITL 中断 → 维持 INTERRUPTED（用户仍需决策，可直接 resume）
+    - 否则 → CANCELLED（本轮未跑完，不可 resume，避免污染 resume 目标）
+    """
+    if not thread_id:
+        return
+    from services import thread_service
+
+    try:
+        if interrupted:
+            thread_service.mark_interrupted(thread_id)
+        else:
+            thread_service.mark_cancelled(thread_id)
+        logger.info(
+            "断连收尾：thread_id=%s status=%s",
+            thread_id,
+            "INTERRUPTED" if interrupted else "CANCELLED",
+        )
+    except Exception as e:
+        logger.warning("断连收尾失败（thread_id=%s）: %s", thread_id, e)
+
+
 def _build_composite_card_data(
     subagent_result: dict | None,
     trace: list[dict],
@@ -577,6 +662,10 @@ async def stream_agent_reply(
     流结束时按中断状态落库线程状态：interrupt → INTERRUPTED，否则 DONE。
     结束前会把 analysis_trace 与结构化结果合并进 assistant 消息的
     card_data（content_type="composite_decision"），供历史回放渲染。
+
+    客户端断连（abort / 网络中断 / 关页面）时 generator 被取消，此时在
+    finally 中全同步落库已产出内容，并将线程标记为 CANCELLED：它与 HITL 的
+    INTERRUPTED 严格区分，不可作为 resume 目标，从而保证前端刷新后不丢整轮结果。
     """
     # 1. 存用户消息 + 自动更新标题
     _insert_message(conv_id, "user", user_content, token_count=_estimate_tokens(user_content))
@@ -609,6 +698,8 @@ async def stream_agent_reply(
     # 用于落库 conversation.context_tokens 与 assistant 消息 token_count。
     context_tokens: Optional[int] = None
     usage_total_tokens: Optional[int] = None
+    # 客户端断连标记：finally 中据此决定是否执行断连落库收尾
+    cancelled = False
 
     try:
         async for event in astream_agent_events(user_content, thread_id=thread_id):
@@ -666,47 +757,49 @@ async def stream_agent_reply(
             yield _sse_event({"type": "chunk", "chunk": "".join(buffer)})
             buffer.clear()
             await asyncio.sleep(interval_s)
+    except (asyncio.CancelledError, GeneratorExit):
+        # 客户端断连（abort / 网络中断 / 关闭页面）或服务端取消：向上传播，
+        # 但先经 finally 把已产出内容落库，避免刷新后整轮结果蒸发。
+        # - CancelledError：ASGI 取消响应任务时抛出
+        # - GeneratorExit：服务器关闭/回收生成器时抛出
+        # 两者都继承 BaseException，下面的 except Exception 抓不到。
+        cancelled = True
+        raise
     except Exception as e:
         logger.error("Stream reply failed: %s", e, exc_info=True)
         yield _sse_event({"type": "chunk", "chunk": degraded_message("agent_error", detail=str(e))})
+    finally:
+        if cancelled:
+            # 断连分支内任何 await 都会被立即取消，因此此处只用全同步实现。
+            try:
+                if _persist_assistant_turn(
+                    conv_id,
+                    "".join(full_parts),
+                    trace,
+                    subagent_result,
+                    card_symbol,
+                    card_stock_name,
+                    card_subagent,
+                    context_tokens,
+                    usage_total_tokens,
+                ):
+                    logger.info("断连落库完成：conversation_id=%s", conv_id)
+            except Exception as e:
+                logger.warning("断连落库失败（conversation_id=%s）: %s", conv_id, e)
+            _finalize_cancelled_stream(thread_id, interrupted)
 
     # 3. 存助手消息（若主 Agent 有输出）；有 trace/结果时落复合卡片数据
-    full_content = "".join(full_parts)
-    if full_content:
-        content_type = "text"
-        card_data = None
-        if subagent_result or trace:
-            content_type = "composite_decision"
-            # trace_id 由 TA 子 Agent 一次生成，随 subagent_result 回传，
-            # 用于报告文件幂等命名与前端定位同一次决策
-            card_data = _build_composite_card_data(
-                subagent_result, trace, card_symbol, card_stock_name, card_subagent
-            )
-        _insert_message(
-            conv_id,
-            "assistant",
-            full_content,
-            content_type,
-            card_data=card_data,
-            # 优先用真实模型 total_tokens（含子 Agent 往返），降级用文本估算
-            token_count=usage_total_tokens or _estimate_tokens(full_content),
-        )
-
-        # 4.4 落库真实上下文占用（最后一次模型调用的 input_tokens）
-        if context_tokens is not None:
-            try:
-                _update_context_tokens(conv_id, context_tokens)
-            except Exception as e:
-                logger.warning("更新 context_tokens 失败: %s", e)
-
-        # 4.5 报告落盘（失败仅告警）；用稳定 trace_id 命名保证重放收敛
-        if content_type == "composite_decision" and card_data:
-            try:
-                from services.report_service import write_decision_report
-                write_decision_report(full_content, card_data, card_data.get("trace_id"))
-            except Exception:
-                logger.warning("write_decision_report failed", exc_info=True)
-
+    if _persist_assistant_turn(
+        conv_id,
+        "".join(full_parts),
+        trace,
+        subagent_result,
+        card_symbol,
+        card_stock_name,
+        card_subagent,
+        context_tokens,
+        usage_total_tokens,
+    ):
         # 4.6 经验写回路异步触发（复盘→提升，失败不影响响应）
         try:
             from services.experience_loop_service import run_experience_loop
@@ -776,6 +869,8 @@ async def resume_agent_reply(
     # 真实上下文用量（同 stream 路径）
     context_tokens: Optional[int] = None
     usage_total_tokens: Optional[int] = None
+    # 客户端断连标记：finally 中据此决定是否执行断连落库收尾
+    cancelled = False
 
     try:
         async for event in astream_agent_events(
@@ -832,44 +927,49 @@ async def resume_agent_reply(
             yield _sse_event({"type": "chunk", "chunk": "".join(buffer)})
             buffer.clear()
             await asyncio.sleep(interval_s)
+    except (asyncio.CancelledError, GeneratorExit):
+        # 客户端断连：向上传播，先经 finally 落库续流已产出内容
+        cancelled = True
+        raise
     except Exception as e:
         logger.error("Resume stream failed: %s", e, exc_info=True)
         yield _sse_event({"type": "chunk", "chunk": degraded_message("agent_error", detail=str(e))})
+    finally:
+        if cancelled:
+            # 再次中断 → 本轮仍等待用户决策，维持 INTERRUPTED 且不落库；
+            # 否则落库已产出内容并标记 CANCELLED。
+            if not interrupted:
+                try:
+                    if _persist_assistant_turn(
+                        conversation_id,
+                        "".join(full_parts),
+                        trace,
+                        subagent_result,
+                        card_symbol,
+                        card_stock_name,
+                        card_subagent,
+                        context_tokens,
+                        usage_total_tokens,
+                    ):
+                        logger.info("断连落库完成（resume）：conversation_id=%s", conversation_id)
+                except Exception as e:
+                    logger.warning(
+                        "断连落库失败（resume，conversation_id=%s）: %s", conversation_id, e
+                    )
+            _finalize_cancelled_stream(thread_id, interrupted)
 
     # 2.5 存助手消息（续流产出；若再次中断则不落库，等待新一轮决策）
-    full_content = "".join(full_parts)
-    if full_content and not interrupted:
-        content_type = "text"
-        card_data = None
-        if subagent_result or trace:
-            content_type = "composite_decision"
-            card_data = _build_composite_card_data(
-                subagent_result, trace, card_symbol, card_stock_name, card_subagent
-            )
-        _insert_message(
-            conversation_id,
-            "assistant",
-            full_content,
-            content_type,
-            card_data=card_data,
-            token_count=usage_total_tokens or _estimate_tokens(full_content),
-        )
-
-        # 落库真实上下文占用（最后一次模型调用的 input_tokens）
-        if context_tokens is not None:
-            try:
-                _update_context_tokens(conversation_id, context_tokens)
-            except Exception as e:
-                logger.warning("更新 context_tokens 失败: %s", e)
-
-        # 报告落盘（失败仅告警）；用稳定 trace_id 命名保证重放收敛
-        if content_type == "composite_decision" and card_data:
-            try:
-                from services.report_service import write_decision_report
-                write_decision_report(full_content, card_data, card_data.get("trace_id"))
-            except Exception:
-                logger.warning("write_decision_report failed", exc_info=True)
-
+    if not interrupted and _persist_assistant_turn(
+        conversation_id,
+        "".join(full_parts),
+        trace,
+        subagent_result,
+        card_symbol,
+        card_stock_name,
+        card_subagent,
+        context_tokens,
+        usage_total_tokens,
+    ):
         # 经验写回路异步触发（复盘→提升，失败不影响响应）
         try:
             from services.experience_loop_service import run_experience_loop

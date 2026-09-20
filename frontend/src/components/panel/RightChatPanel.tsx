@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { History, MessageSquarePlus, X, Pencil, SendHorizonal, Loader2 } from 'lucide-react'
+import { History, MessageSquarePlus, X, Pencil, SendHorizonal, SquareStop, Loader2 } from 'lucide-react'
 import { useChatApi } from '@/hooks/useChatApi'
 import { useConversationStream } from '@/hooks/useChatStream'
-import { conversationStreamStore } from '@/lib/conversationStreamStore'
+import { conversationStreamStore, STREAM_RECONCILE_DELAY_MS } from '@/lib/conversationStreamStore'
 import { Markdown } from '@/components/chat/Markdown'
+import { StreamOutcomeNotice, StreamStatusBar } from '@/components/chat/StreamStatusBar'
 import { useThrottledValue } from '@/hooks/useThrottledValue'
 import type { ChatMessage, Conversation } from '@/types'
 import { cn } from '@/lib/utils'
@@ -27,9 +28,13 @@ export function RightChatPanel({ onClose, pendingPrompt, onPromptConsumed }: Rig
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   // 流式状态按会话隔离存放于组件外：切换面板会话不中止流，切回即可见累积输出
-  const { text: streamText, subagentCards, isStreaming } = useConversationStream(selectedId)
+  const { text: streamText, subagentCards, isStreaming, outcome } = useConversationStream(selectedId)
   /** 当前选中会话 id 的实时镜像：流式结束后的异步回调据此判断是否仍停留在该会话 */
   const selectedIdRef = useRef<string | null>(null)
+  /** 最近一次发送前的本地 assistant 条数：判断后端是否已落库本轮消息 */
+  const assistantCountRef = useRef(0)
+  /** messages 的实时镜像：让 sendContent 依赖稳定，避免预设提示词 effect 反复触发 */
+  const messagesRef = useRef<ChatMessage[]>(messages)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [titleDraft, setTitleDraft] = useState('')
@@ -64,6 +69,11 @@ export function RightChatPanel({ onClose, pendingPrompt, onPromptConsumed }: Rig
   useEffect(() => {
     selectedIdRef.current = selectedId
   }, [selectedId])
+
+  // 同步消息镜像（sendContent 通过 ref 读取，保持依赖稳定）
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
 
   // 切换会话时加载消息；不中止其它会话的流
   useEffect(() => {
@@ -117,27 +127,43 @@ export function RightChatPanel({ onClose, pendingPrompt, onPromptConsumed }: Rig
     await refreshConvs()
   }, [selectedId, titleDraft, renameConversation, refreshConvs])
 
-  // 发送一条消息：乐观插入 → 流式 → 刷新落库消息 → 刷新会话标题
+  /**
+   * 流收尾对账：延迟等待后端落库后刷新消息（同主控台策略）。
+   * 仅当后端确实落库了本轮助手消息时才清空流式状态，否则保留内容与提示。
+   */
+  const reconcile = useCallback(
+    async (convId: string, baselineAssistantCount: number) => {
+      await new Promise((resolve) => setTimeout(resolve, STREAM_RECONCILE_DELAY_MS))
+      const fresh = await getMessages(convId).catch(() => null)
+      if (!fresh) return
+      if (selectedIdRef.current === convId) setMessages(fresh)
+      const persisted = fresh.filter((m) => m.role === 'assistant').length > baselineAssistantCount
+      if (persisted) conversationStreamStore.clear(convId)
+    },
+    [getMessages],
+  )
+
+  // 发送一条消息：乐观插入 → 流式 → 延迟对账 → 刷新会话标题
   const sendContent = useCallback(
     async (content: string) => {
       if (!content || !selectedId) return
+      const current = messagesRef.current
+      const baselineAssistantCount = current.filter((m) => m.role === 'assistant').length
+      assistantCountRef.current = baselineAssistantCount
       const temp: ChatMessage = {
         id: `tmp-${Date.now()}`,
         conversationId: selectedId,
         role: 'user',
         content,
-        sequence: messages.length + 1,
+        sequence: current.length + 1,
         createdAt: new Date().toISOString(),
       }
       setMessages((prev) => [...prev, temp])
       await conversationStreamStore.start(selectedId, content)
-      // 仅当用户仍停留在该会话时回填，避免覆盖其它会话的消息
-      const fresh = await getMessages(selectedId).catch(() => null)
-      if (fresh && selectedIdRef.current === selectedId) setMessages(fresh)
-      conversationStreamStore.clear(selectedId)
+      await reconcile(selectedId, baselineAssistantCount)
       await refreshConvs()
     },
-    [selectedId, messages.length, getMessages, refreshConvs],
+    [selectedId, reconcile, refreshConvs],
   )
 
   const handleSend = useCallback(async () => {
@@ -146,6 +172,14 @@ export function RightChatPanel({ onClose, pendingPrompt, onPromptConsumed }: Rig
     setInput('')
     await sendContent(content)
   }, [input, sendContent])
+
+  /** 停止生成：中止当前面板会话的流（已产出内容保留），随后延迟对账 */
+  const handleStop = useCallback(() => {
+    const convId = selectedIdRef.current
+    if (!convId) return
+    conversationStreamStore.cancel(convId)
+    void reconcile(convId, assistantCountRef.current)
+  }, [reconcile])
 
   // 外部触发的预设提示词（卡片「AI 分析」）：待选中会话就绪后自动发送
   useEffect(() => {
@@ -262,7 +296,7 @@ export function RightChatPanel({ onClose, pendingPrompt, onPromptConsumed }: Rig
 
       {/* 消息区 */}
       <div className="flex-1 overflow-y-auto scrollbar-hide px-3 py-3">
-        {messages.length === 0 && !streamText && subagentCards.length === 0 ? (
+        {messages.length === 0 && !streamText && subagentCards.length === 0 && !outcome ? (
           <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
             <div className="rounded-full bg-[var(--color-bg-subtle)] p-2.5">
               <MessageSquarePlus className="h-4 w-4 text-[var(--color-text-tertiary)]" />
@@ -294,6 +328,10 @@ export function RightChatPanel({ onClose, pendingPrompt, onPromptConsumed }: Rig
                 </div>
               </div>
             )}
+            {/* 生成中：中立等待提示（不判定断连） */}
+            {isStreaming && selectedId && <StreamStatusBar conversationId={selectedId} />}
+            {/* 已停止 / 未正常结束：内容保留提示 */}
+            {!isStreaming && <StreamOutcomeNotice outcome={outcome} />}
             <div ref={bottomRef} />
           </div>
         )}
@@ -315,18 +353,29 @@ export function RightChatPanel({ onClose, pendingPrompt, onPromptConsumed }: Rig
             placeholder="输入消息，Enter 发送…"
             className="max-h-24 flex-1 resize-none bg-transparent text-xs text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-placeholder)] leading-relaxed"
           />
-          <button
-            onClick={handleSend}
-            disabled={!input.trim() || isStreaming}
-            className={cn(
-              'flex h-6 w-6 shrink-0 items-center justify-center rounded-lg transition-all',
-              input.trim() && !isStreaming
-                ? 'text-[var(--color-accent)] hover:bg-[var(--color-accent-soft)]'
-                : 'text-[var(--color-text-placeholder)]',
-            )}
-          >
-            <SendHorizonal className="h-4 w-4" />
-          </button>
+          {/* 生成中 → 停止生成；空闲 → 发送 */}
+          {isStreaming ? (
+            <button
+              onClick={handleStop}
+              title="停止生成（已产出的内容会保留）"
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[var(--color-danger)] transition-all hover:bg-[var(--color-danger)]/10"
+            >
+              <SquareStop className="h-4 w-4" />
+            </button>
+          ) : (
+            <button
+              onClick={handleSend}
+              disabled={!input.trim()}
+              className={cn(
+                'flex h-6 w-6 shrink-0 items-center justify-center rounded-lg transition-all',
+                input.trim()
+                  ? 'text-[var(--color-accent)] hover:bg-[var(--color-accent-soft)]'
+                  : 'text-[var(--color-text-placeholder)]',
+              )}
+            >
+              <SendHorizonal className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
     </aside>

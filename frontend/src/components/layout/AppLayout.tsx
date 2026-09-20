@@ -42,6 +42,8 @@ interface AppLayoutProps {
   messages: ChatMessage[]
   streaming: StreamDisplay | null
   onSendMessage: (content: string) => void
+  /** 停止生成：中止当前会话的流（已产出内容保留） */
+  onStopStream: () => void
   /** HITL 中断后提交用户决策（resume 续流） */
   onResume: (decisions: Decision[]) => void
   latestCardData: DecisionCardData | null
@@ -81,6 +83,7 @@ export function AppLayout({
   messages,
   streaming,
   onSendMessage,
+  onStopStream,
   onResume,
   latestCardData,
   profile,
@@ -161,9 +164,11 @@ export function AppLayout({
             panelOpen={panelOpen}
             onPanelToggle={onPanelToggle}
             conversationTitle={selectedConv?.title ?? null}
+            conversationId={selectedConversationId}
             messages={messages}
             streaming={streaming}
             onSendMessage={onSendMessage}
+            onStopStream={onStopStream}
             onResume={onResume}
             latestCardData={latestCardData}
             onAiAnalyze={onAiAnalyze}

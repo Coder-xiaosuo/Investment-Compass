@@ -1,8 +1,10 @@
+import { createParser, type EventSourceMessage } from 'eventsource-parser'
 import type {
   Citation,
   Decision,
   HITLRequest,
   StreamDisplay,
+  StreamOutcome,
   SubagentCardState,
   Todo,
 } from '@/types'
@@ -13,8 +15,19 @@ import type {
  * 设计目标：流式任务的生命周期与组件树、与 selectedId 解耦。
  * - 每个 conversationId 独立持有一份展示状态与一个 AbortController；
  * - chunk 实时写入对应会话的状态，切换会话后切回即可读到累积结果；
- * - 组件卸载 / 切换会话都不中止流，只有显式 cancel(conversationId) 才 abort。
+ * - 组件卸载 / 切换会话都不中止流，只有显式中止才 abort：
+ *   cancel()  用户「停止生成」→ 中止但保留已产出内容（outcome='aborted'）
+ *   discard() 会话被删除       → 中止并清空展示状态
  */
+
+/**
+ * 停止 / 异常结束后的延迟对账时长。
+ *
+ * 用户点「停止生成」触发 abort 后，后端在 generator 的 finally 中才落库，
+ * 需要几十~几百毫秒；立即 getMessages 会读不到那条 assistant 消息，
+ * 表现为「点了停止，内容反而消失」。故延迟一段时间再对账。
+ */
+export const STREAM_RECONCILE_DELAY_MS = 1000
 
 /** 空流状态单例：保证无内容时 getSnapshot 引用稳定（useSyncExternalStore 要求） */
 export const EMPTY_STREAM_DISPLAY: StreamDisplay = {
@@ -29,6 +42,7 @@ export const EMPTY_STREAM_DISPLAY: StreamDisplay = {
   threadId: null,
   isResuming: false,
   contextTokens: null,
+  outcome: null,
 }
 
 interface StreamEvent {
@@ -40,22 +54,36 @@ interface StreamRuntime {
   controller: AbortController
   /** 本轮流是否产出过 interrupt 事件（同步判断，避免依赖异步 state） */
   sawInterrupt: boolean
+  /** 是否收到后端 {"done": true} 结束事件（未收到即为截断） */
+  sawDone: boolean
+  /** 是否由用户主动点击「停止生成」触发的中止 */
+  cancelledByUser: boolean
+  /** 本轮开始时间（等待时长提示用，不入快照避免高频 commit） */
+  startedAt: number
+  /** 最近一次收到业务事件的时间（同上） */
+  lastEventAt: number
 }
 
-/** 从 SSE 块中解析出 data: 行的 JSON 事件（无事件时返回 null） */
-function parseDataEvent(part: string): StreamEvent | null {
-  for (const line of part.split('\n')) {
-    if (line.startsWith('data:')) {
-      const payload = line.slice(5).trim()
-      if (!payload) continue
-      try {
-        return JSON.parse(payload) as StreamEvent
-      } catch {
-        // 忽略无法解析的行
-      }
-    }
+/** 流式时序元信息（供等待提示条使用；与展示快照分离，避免每秒触发 commit） */
+export interface StreamMeta {
+  startedAt: number
+  lastEventAt: number
+}
+
+/**
+ * 将 SSE 消息的 data 解析为后端结构化事件（非法 JSON 返回 null）。
+ *
+ * 分帧（含 CRLF/CR、多行 data 拼接、注释与空行）由 eventsource-parser 按规范处理，
+ * 此处只负责 JSON 解码与类型收窄。
+ */
+function parseEventMessage(message: EventSourceMessage): StreamEvent | null {
+  const payload = message.data.trim()
+  if (!payload) return null
+  try {
+    return JSON.parse(payload) as StreamEvent
+  } catch {
+    return null
   }
-  return null
 }
 
 class ConversationStreamStore {
@@ -82,11 +110,31 @@ class ConversationStreamStore {
     }
   }
 
-  /** 显式取消指定会话的流（唯一的中止入口，组件卸载不触发） */
+  /**
+   * 用户主动「停止生成」：中止该会话的流，但**保留已产出内容**。
+   *
+   * 不清理展示状态 —— 中止会经 start()/resume() 的收尾逻辑写入
+   * outcome='aborted'，内容留在 text 中等待调用方延迟对账。
+   */
   cancel(conversationId: string): void {
+    const runtime = this.runtimes.get(conversationId)
+    if (!runtime) return
+    runtime.cancelledByUser = true
+    runtime.controller.abort()
+  }
+
+  /** 彻底丢弃该会话的流（中止 + 清空展示状态）：会话被删除时使用 */
+  discard(conversationId: string): void {
     this.runtimes.get(conversationId)?.controller.abort()
     this.runtimes.delete(conversationId)
     this.clear(conversationId)
+  }
+
+  /** 读取该会话的流式时序元信息（仅在流进行中有值） */
+  getStreamMeta = (conversationId: string): StreamMeta | null => {
+    const runtime = this.runtimes.get(conversationId)
+    if (!runtime) return null
+    return { startedAt: runtime.startedAt, lastEventAt: runtime.lastEventAt }
   }
 
   /** 清空该会话的流式展示状态（消息已落库并刷新后调用） */
@@ -154,10 +202,10 @@ class ConversationStreamStore {
       }
       return stillInterrupted
     } catch (err: any) {
-      // 主动取消不视为错误；失败时保留中断状态，允许用户重试
-      if (err?.name !== 'AbortError') {
-        console.error('[conversationStreamStore] resume failed:', err)
-      }
+      // 用户主动停止 / 被新流替换：以是否再次中断为准，交由调用方按 outcome 处理
+      if (err?.name === 'AbortError') return runtime.sawInterrupt
+      // 失败时保留中断状态，允许用户重试
+      console.error('[conversationStreamStore] resume failed:', err)
       return true
     } finally {
       this.end(conversationId, runtime)
@@ -170,7 +218,15 @@ class ConversationStreamStore {
   private begin(conversationId: string, mode: 'start' | 'resume'): StreamRuntime {
     // 同一会话重入 → 替换旧流（不影响其它会话）
     this.runtimes.get(conversationId)?.controller.abort()
-    const runtime: StreamRuntime = { controller: new AbortController(), sawInterrupt: false }
+    const now = Date.now()
+    const runtime: StreamRuntime = {
+      controller: new AbortController(),
+      sawInterrupt: false,
+      sawDone: false,
+      cancelledByUser: false,
+      startedAt: now,
+      lastEventAt: now,
+    }
     this.runtimes.set(conversationId, runtime)
 
     if (mode === 'start') {
@@ -185,43 +241,68 @@ class ConversationStreamStore {
     return runtime
   }
 
-  /** 收尾：仅当仍是当前运行时（未被新流替换 / 未被取消）时复位标记 */
+  /**
+   * 收尾：仅当仍是当前运行时（未被新流替换）时复位标记并写入 outcome。
+   *
+   * outcome 判定（顺序即优先级）：
+   *   cancelledByUser → aborted（用户停止，内容保留）
+   *   sawInterrupt    → interrupted（HITL 等待决策）
+   *   sawDone         → completed（后端明确结束）
+   *   否则            → failed（未收到 done 即断开，内容保留）
+   */
   private end(conversationId: string, runtime: StreamRuntime): void {
     if (this.runtimes.get(conversationId) !== runtime) return
     this.runtimes.delete(conversationId)
     const prev = this.states.get(conversationId)
     if (!prev) return
-    this.commit(conversationId, { ...prev, isStreaming: false, isResuming: false })
+    const outcome: StreamOutcome = runtime.cancelledByUser
+      ? 'aborted'
+      : runtime.sawInterrupt
+        ? 'interrupted'
+        : runtime.sawDone
+          ? 'completed'
+          : 'failed'
+    this.commit(conversationId, { ...prev, isStreaming: false, isResuming: false, outcome })
   }
 
-  /** 消费一个 SSE Response：分块解析并逐事件应用 */
+  /** 消费一个 SSE Response：交给 eventsource-parser 分帧后逐事件应用 */
   private async consume(conversationId: string, runtime: StreamRuntime, res: Response): Promise<void> {
     if (!res.ok || !res.body) {
       throw new Error(`stream request failed: HTTP ${res.status}`)
     }
     const reader = res.body.getReader()
     const decoder = new TextDecoder()
-    let buffer = ''
+
+    // 按 SSE 规范分帧：兼容 \r\n / \r / \n 换行、跨 chunk 断行、多行 data 拼接与心跳注释
+    const parser = createParser({
+      onEvent: (message) => {
+        const event = parseEventMessage(message)
+        if (event) this.applyEvent(conversationId, runtime, event)
+      },
+    })
 
     for (;;) {
       const { done, value } = await reader.read()
       if (done) break
-      buffer += decoder.decode(value, { stream: true })
-      const parts = buffer.split('\n\n')
-      buffer = parts.pop() ?? ''
-      for (const part of parts) {
-        const event = parseDataEvent(part)
-        if (event) this.applyEvent(conversationId, runtime, event)
-      }
+      parser.feed(decoder.decode(value, { stream: true }))
     }
-    if (buffer.trim()) {
-      const event = parseDataEvent(buffer)
-      if (event) this.applyEvent(conversationId, runtime, event)
-    }
+    // 冲掉解码器尾部残留的多字节字符
+    parser.feed(decoder.decode())
   }
 
   /** 解析并应用单个 SSE 事件（一次事件一次状态写入 + 一次通知） */
   private applyEvent(conversationId: string, runtime: StreamRuntime, event: StreamEvent): void {
+    // 记录活跃时间（供等待提示条判断"是否长时间无新输出"）
+    runtime.lastEventAt = Date.now()
+
+    // 后端结束事件形如 {"done": true}（key 是 done 而非 type），
+    // 是唯一可靠的「本轮正常结束」信号：收到它才算 completed，
+    // 否则流被截断（网络中断、服务端异常），标记为 failed。
+    if (event.done === true) {
+      runtime.sawDone = true
+      return
+    }
+
     const prev = this.states.get(conversationId)
     if (!prev) return
     const draft: StreamDisplay = { ...prev }

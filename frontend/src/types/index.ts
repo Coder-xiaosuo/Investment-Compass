@@ -121,6 +121,15 @@ export interface SourceTab {
   source: string
 }
 
+/**
+ * 流式结束结果类型：
+ * - completed   正常结束（收到后端 {"done": true}）
+ * - interrupted HITL 中断，等待用户决策（可 resume）
+ * - aborted     用户主动点击「停止生成」
+ * - failed      流未正常结束（网络错误 / 未收到 done 即断开）
+ */
+export type StreamOutcome = 'completed' | 'interrupted' | 'aborted' | 'failed'
+
 /** 流式会话的展示状态（App 持有，传给 ChatView 渲染） */
 export interface StreamDisplay {
   text: string
@@ -142,6 +151,8 @@ export interface StreamDisplay {
   isResuming?: boolean
   /** 当前上下文真实占用（usage 事件实时透传；与后端 context_tokens 同口径） */
   contextTokens?: number | null
+  /** 本轮流的结束结果（由 store 在流收尾时写入；aborted/failed 时内容仍保留在 text 中） */
+  outcome?: StreamOutcome | null
 }
 
 // ── HITL 人工干预 ───────────────────────────────────────────────────────────

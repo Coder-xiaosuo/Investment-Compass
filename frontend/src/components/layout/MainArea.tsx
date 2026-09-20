@@ -17,9 +17,13 @@ interface MainAreaProps {
   panelOpen: boolean
   onPanelToggle: () => void
   conversationTitle: string | null
+  /** 当前会话 id（流式等待提示条据此读取时序元信息） */
+  conversationId: string | null
   messages: ChatMessage[]
   streaming: StreamDisplay | null
   onSendMessage: (content: string) => void
+  /** 停止生成：中止当前会话的流（已产出内容保留） */
+  onStopStream?: () => void
   /** HITL 中断后提交用户决策（resume 续流） */
   onResume: (decisions: Decision[]) => void
   /** 主控台最近一次 composite_decision 的 card_data（目标价卡数据源） */
@@ -50,9 +54,11 @@ export function MainArea({
   panelOpen,
   onPanelToggle,
   conversationTitle,
+  conversationId,
   messages,
   streaming,
   onSendMessage,
+  onStopStream,
   onResume,
   latestCardData,
   onAiAnalyze,
@@ -64,9 +70,11 @@ export function MainArea({
       <main className="flex flex-1 min-w-0">
         <ChatView
           conversationTitle={conversationTitle}
+          conversationId={conversationId}
           messages={messages}
           streaming={streaming}
           onSendMessage={onSendMessage}
+          onStop={onStopStream}
           onResume={onResume}
           panelOpen={panelOpen}
           onPanelToggle={onPanelToggle}
