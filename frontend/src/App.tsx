@@ -257,11 +257,12 @@ export default function App() {
   /**
    * 流收尾对账：延迟等待后端落库后刷新消息。
    *
-   * 后端在 generator 收尾时才落库（正常结束 / 断连 finally 都一样），
-   * 立即拉取会读不到本轮助手消息，故先延迟。
+   * 后端在 generator 收尾时才落库
+   * 立即拉取会读不到本轮助手消息。
    * - 仅当用户仍停留在该会话时回填，避免覆盖其它会话的消息；
    * - 仅当后端确实落库了本轮助手消息（assistant 条数增加）才清空流式状态，
-   *   否则保留内存内容与 outcome 提示，避免「停止后内容反而消失」。
+   *   否则保留内存内容与 outcome 提示，避免「停止后内容反而消失」；
+   * - 若该会话已被新一轮接管（用户打断后自动重发），跳过清空：否则会清掉新流的展示状态。
    */
   const reconcileAfterStreamEnd = useCallback(
     async (convId: string, baselineAssistantCount: number) => {
@@ -270,12 +271,19 @@ export default function App() {
       if (!fresh) return
       if (selectedIdRef.current === convId) setMessages(fresh)
       const persisted = fresh.filter((m) => m.role === 'assistant').length > baselineAssistantCount
-      if (persisted) conversationStreamStore.clear(convId)
+      if (persisted && !conversationStreamStore.hasActiveStream(convId)) {
+        conversationStreamStore.clear(convId)
+      }
     },
     [getMessages],
   )
 
-  /** 停止生成：中止当前会话的流（已产出内容保留），随后延迟对账 */
+  /**
+   * 停止生成：硬中断当前会话的流（已产出内容保留），随后延迟对账。
+   *
+   * 也是「软取消等待期间再次点击」的出口：不再等安全检查点，立即 abort。
+   * 若用户此前已发来新消息，旧流收尾后该消息仍会自动发出。
+   */
   const handleStopStream = useCallback(() => {
     const convId = selectedIdRef.current
     if (!convId) return
@@ -310,9 +318,19 @@ export default function App() {
     }
     setMessages((prev) => [...prev, tempUserMsg])
 
-    // 流式发送：状态写入会话级仓库（切换会话不受影响）；
+    // 发起请求：该会话已有流在进行时走「软取消 + 自动重发」（旧流在安全检查点
+    // 主动退出，避免打断执行到一半的工具调用），否则直接发起新一轮。
+    // 被中断的旧轮内容以带「用户手动中断」标记的消息交接回来，须插在本条用户消息
+    // 之前，否则「一问一答」的时间顺序会颠倒。
     // 若以 HITL 中断结束则保留确认卡片，不清空该会话的流式状态
-    const interrupted = await conversationStreamStore.start(convId, content)
+    const interrupted = await conversationStreamStore.interrupt(convId, content, {
+      onRoundInterrupted: (message) =>
+        setMessages((prev) => {
+          const idx = prev.findIndex((m) => m.id === tempUserMsg.id)
+          if (idx < 0) return [...prev, message]
+          return [...prev.slice(0, idx), message, ...prev.slice(idx)]
+        }),
+    })
     if (interrupted) return
 
     await reconcileAfterStreamEnd(convId, baselineAssistantCount)

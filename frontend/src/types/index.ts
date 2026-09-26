@@ -153,6 +153,8 @@ export interface StreamDisplay {
   contextTokens?: number | null
   /** 本轮流的结束结果（由 store 在流收尾时写入；aborted/failed 时内容仍保留在 text 中） */
   outcome?: StreamOutcome | null
+  /** 等待态：用户已发来新消息，正在软取消旧流；旧流退出后自动发出新请求 */
+  isInterrupting?: boolean
 }
 
 // ── HITL 人工干预 ───────────────────────────────────────────────────────────

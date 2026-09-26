@@ -64,31 +64,45 @@ function getHistoryCitations(msg: ChatMessage): Citation[] {
   return Array.isArray(cites) ? (cites as Citation[]) : []
 }
 
+/** 该条助手消息是否由用户主动打断（软取消时由后端落库 / 本地交接时打标） */
+function isUserInterrupted(msg: ChatMessage): boolean {
+  return msg.role === 'assistant' && msg.card_data?.user_interrupted === true
+}
+
 function MessageBubble({ msg }: { msg: ChatMessage }) {
   const isUser = msg.role === 'user'
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
-      {!isUser && (
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent-soft)] mr-2 mt-1 text-xs">
-          AI
+    <div className="mb-4">
+      <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+        {!isUser && (
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent-soft)] mr-2 mt-1 text-xs">
+            AI
+          </div>
+        )}
+        <div
+          className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-base leading-relaxed ${
+            isUser
+              ? 'bg-[var(--color-accent)] text-white rounded-br-md'
+              : 'bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] rounded-bl-md border border-[var(--color-border-light)]'
+          }`}
+        >
+          {isUser ? (
+            <span className="whitespace-pre-wrap">{msg.content}</span>
+          ) : (
+            <Markdown content={msg.content} />
+          )}
         </div>
-      )}
-      <div
-        className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-base leading-relaxed ${
-          isUser
-            ? 'bg-[var(--color-accent)] text-white rounded-br-md'
-            : 'bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] rounded-bl-md border border-[var(--color-border-light)]'
-        }`}
-      >
-        {isUser ? (
-          <span className="whitespace-pre-wrap">{msg.content}</span>
-        ) : (
-          <Markdown content={msg.content} />
+        {isUser && (
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-bg-subtle)] ml-2 mt-1 text-xs">
+            我
+          </div>
         )}
       </div>
-      {isUser && (
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-bg-subtle)] ml-2 mt-1 text-xs">
-          我
+      {/* 用户手动打断：本条回复是打断前已产出的部分内容 */}
+      {isUserInterrupted(msg) && (
+        <div className="mt-1.5 flex items-center gap-1.5 pl-9 text-xs text-[var(--color-text-tertiary)]">
+          <SquareStop className="h-3 w-3 shrink-0" />
+          <span>用户手动中断，以上为已产出的部分内容</span>
         </div>
       )}
     </div>
@@ -336,20 +350,32 @@ export function ChatView({ conversationTitle, conversationId, messages, streamin
       {/* 输入框 */}
       <div className="flex min-h-[16.67vh] flex-col items-center justify-center bg-transparent px-6">
         <div className="w-full max-w-[720px]">
-          {/* 生成中：停止生成（中止该会话的流，已产出内容保留） */}
+          {/* 生成中：停止生成（中止该会话的流，已产出内容保留）；
+              等待打断时再次点击 → 立即硬中断，不再等安全边界 */}
           {streaming?.isStreaming && onStop && (
             <div className="mb-2 flex justify-center">
               <button
                 onClick={onStop}
-                className="flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-bg-surface)] px-3 py-1 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-danger)] hover:text-[var(--color-danger)]"
-                title="停止生成（已产出的内容会保留）"
+                className={cn(
+                  'flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+                  streaming.isInterrupting
+                    ? 'border-[var(--color-danger)] text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10'
+                    : 'border-[var(--color-border)] bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] hover:border-[var(--color-danger)] hover:text-[var(--color-danger)]',
+                )}
+                title={
+                  streaming.isInterrupting
+                    ? '立即中断当前任务（不再等待安全检查点）'
+                    : '停止生成（已产出的内容会保留）'
+                }
               >
                 <SquareStop className="h-3.5 w-3.5" />
-                停止生成
+                {streaming.isInterrupting ? '正在打断…再次点击立即中断' : '停止生成'}
               </button>
             </div>
           )}
-          <InputArea onSend={onSendMessage} disabled={!!streaming?.isStreaming} />
+          {/* 生成中也允许输入：用户可随时发新消息打断当前任务；
+              打断等待期间由 pending 接管（禁用输入并提示） */}
+          <InputArea onSend={onSendMessage} pending={!!streaming?.isInterrupting} />
         </div>
       </div>
     </div>

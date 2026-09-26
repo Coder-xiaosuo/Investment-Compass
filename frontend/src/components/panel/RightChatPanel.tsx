@@ -28,7 +28,8 @@ export function RightChatPanel({ onClose, pendingPrompt, onPromptConsumed }: Rig
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   // 流式状态按会话隔离存放于组件外：切换面板会话不中止流，切回即可见累积输出
-  const { text: streamText, subagentCards, isStreaming, outcome } = useConversationStream(selectedId)
+  const { text: streamText, subagentCards, isStreaming, outcome, isInterrupting } =
+    useConversationStream(selectedId)
   /** 当前选中会话 id 的实时镜像：流式结束后的异步回调据此判断是否仍停留在该会话 */
   const selectedIdRef = useRef<string | null>(null)
   /** 最近一次发送前的本地 assistant 条数：判断后端是否已落库本轮消息 */
@@ -129,7 +130,8 @@ export function RightChatPanel({ onClose, pendingPrompt, onPromptConsumed }: Rig
 
   /**
    * 流收尾对账：延迟等待后端落库后刷新消息（同主控台策略）。
-   * 仅当后端确实落库了本轮助手消息时才清空流式状态，否则保留内容与提示。
+   * 仅当后端确实落库了本轮助手消息时才清空流式状态，否则保留内容与提示；
+   * 若该会话已被新一轮接管（用户打断后自动重发）则跳过清空，避免清掉新流的展示状态。
    */
   const reconcile = useCallback(
     async (convId: string, baselineAssistantCount: number) => {
@@ -138,12 +140,16 @@ export function RightChatPanel({ onClose, pendingPrompt, onPromptConsumed }: Rig
       if (!fresh) return
       if (selectedIdRef.current === convId) setMessages(fresh)
       const persisted = fresh.filter((m) => m.role === 'assistant').length > baselineAssistantCount
-      if (persisted) conversationStreamStore.clear(convId)
+      if (persisted && !conversationStreamStore.hasActiveStream(convId)) {
+        conversationStreamStore.clear(convId)
+      }
     },
     [getMessages],
   )
 
-  // 发送一条消息：乐观插入 → 流式 → 延迟对账 → 刷新会话标题
+  // 发送一条消息：乐观插入 → 流式 → 延迟对账 → 刷新会话标题。
+  // 若该会话已有流在进行，走「软取消 + 自动重发」（旧流在安全检查点主动退出，
+  // 避免打断执行到一半的工具调用），随后自动发出本条消息
   const sendContent = useCallback(
     async (content: string) => {
       if (!content || !selectedId) return
@@ -159,7 +165,16 @@ export function RightChatPanel({ onClose, pendingPrompt, onPromptConsumed }: Rig
         createdAt: new Date().toISOString(),
       }
       setMessages((prev) => [...prev, temp])
-      await conversationStreamStore.start(selectedId, content)
+      // 被中断的旧轮内容以带「用户手动中断」标记的消息交接回来，须插在本条用户
+      // 消息之前，否则「一问一答」的时间顺序会颠倒
+      await conversationStreamStore.interrupt(selectedId, content, {
+        onRoundInterrupted: (message) =>
+          setMessages((prev) => {
+            const idx = prev.findIndex((m) => m.id === temp.id)
+            if (idx < 0) return [...prev, message]
+            return [...prev.slice(0, idx), message, ...prev.slice(idx)]
+          }),
+      })
       await reconcile(selectedId, baselineAssistantCount)
       await refreshConvs()
     },
@@ -173,7 +188,11 @@ export function RightChatPanel({ onClose, pendingPrompt, onPromptConsumed }: Rig
     await sendContent(content)
   }, [input, sendContent])
 
-  /** 停止生成：中止当前面板会话的流（已产出内容保留），随后延迟对账 */
+  /**
+   * 停止生成：硬中断当前面板会话的流（已产出内容保留），随后延迟对账。
+   * 也是「软取消等待期间再次点击」的出口：立即 abort，不等安全检查点；
+   * 用户此前排队的新消息仍会在旧流收尾后自动发出。
+   */
   const handleStop = useCallback(() => {
     const convId = selectedIdRef.current
     if (!convId) return
@@ -339,6 +358,15 @@ export function RightChatPanel({ onClose, pendingPrompt, onPromptConsumed }: Rig
 
       {/* 输入区 */}
       <div className="shrink-0 border-t border-[var(--color-border-light)] p-3">
+        {/* 等待态：新消息已排队，正在软取消旧流 */}
+        {isInterrupting && (
+          <div className="mb-2 flex items-center gap-1.5 rounded-md bg-[var(--color-bg-subtle)] px-2.5 py-1.5">
+            <Loader2 className="h-3 w-3 shrink-0 animate-spin text-[var(--color-warning)]" />
+            <span className="text-xs text-[var(--color-text-secondary)]">
+              已收到你的消息，正在打断当前任务，稍后自动发送…
+            </span>
+          </div>
+        )}
         <div className="flex items-end gap-2 rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 focus-within:border-[var(--color-accent)]">
           <textarea
             value={input}
@@ -350,15 +378,23 @@ export function RightChatPanel({ onClose, pendingPrompt, onPromptConsumed }: Rig
               }
             }}
             rows={1}
-            placeholder="输入消息，Enter 发送…"
-            className="max-h-24 flex-1 resize-none bg-transparent text-xs text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-placeholder)] leading-relaxed"
+            disabled={isInterrupting}
+            placeholder={isInterrupting ? '正在打断当前任务…' : '输入消息，Enter 发送…'}
+            className="max-h-24 flex-1 resize-none bg-transparent text-xs text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-placeholder)] leading-relaxed disabled:cursor-not-allowed"
           />
           {/* 生成中 → 停止生成；空闲 → 发送 */}
           {isStreaming ? (
             <button
               onClick={handleStop}
-              title="停止生成（已产出的内容会保留）"
-              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[var(--color-danger)] transition-all hover:bg-[var(--color-danger)]/10"
+              title={
+                isInterrupting
+                  ? '立即中断当前任务'
+                  : '停止生成'
+              }
+              className={cn(
+                'flex h-6 w-6 shrink-0 items-center justify-center rounded-lg transition-all hover:bg-[var(--color-danger)]/10',
+                isInterrupting ? 'text-[var(--color-danger)] animate-pulse' : 'text-[var(--color-danger)]',
+              )}
             >
               <SquareStop className="h-4 w-4" />
             </button>
@@ -391,30 +427,41 @@ function StreamingMarkdown({ text }: { text: string }) {
 /** 消息气泡（用户右 / AI 左） */
 function Bubble({ msg }: { msg: ChatMessage }) {
   const isUser = msg.role === 'user'
+  /** 用户主动打断的助手消息（软取消时由后端落库 / 本地交接时打标） */
+  const interrupted = !isUser && msg.card_data?.user_interrupted === true
   return (
-    <div className={cn('mb-3 flex', isUser ? 'justify-end' : 'justify-start')}>
-      {!isUser && (
-        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent-soft)] text-xs mr-2 mt-1">
-          AI
-        </div>
-      )}
-      <div
-        className={cn(
-          'max-w-[80%] rounded-2xl px-3 py-2 text-xs leading-relaxed',
-          isUser
-            ? 'rounded-br-md bg-[var(--color-accent)] text-white'
-            : 'rounded-bl-md border border-[var(--color-border-light)] bg-[var(--color-bg-surface)] text-[var(--color-text-primary)]',
+    <div className="mb-3">
+      <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
+        {!isUser && (
+          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent-soft)] text-xs mr-2 mt-1">
+            AI
+          </div>
         )}
-      >
-        {isUser ? (
-          <span className="whitespace-pre-wrap">{msg.content}</span>
-        ) : (
-          <Markdown content={msg.content} compact />
+        <div
+          className={cn(
+            'max-w-[80%] rounded-2xl px-3 py-2 text-xs leading-relaxed',
+            isUser
+              ? 'rounded-br-md bg-[var(--color-accent)] text-white'
+              : 'rounded-bl-md border border-[var(--color-border-light)] bg-[var(--color-bg-surface)] text-[var(--color-text-primary)]',
+          )}
+        >
+          {isUser ? (
+            <span className="whitespace-pre-wrap">{msg.content}</span>
+          ) : (
+            <Markdown content={msg.content} compact />
+          )}
+        </div>
+        {isUser && (
+          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--color-bg-subtle)] text-xs ml-2 mt-1">
+            我
+          </div>
         )}
       </div>
-      {isUser && (
-        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--color-bg-subtle)] text-xs ml-2 mt-1">
-          我
+      {/* 用户手动打断：本条回复是打断前已产出的部分内容 */}
+      {interrupted && (
+        <div className="mt-1 flex items-center gap-1 pl-8 text-xs text-[var(--color-text-tertiary)]">
+          <SquareStop className="h-3 w-3 shrink-0" />
+          <span>用户手动中断，以上为已产出的部分内容</span>
         </div>
       )}
     </div>
