@@ -72,6 +72,18 @@ class Settings:
     )
     INVESTMENT_AGENT_ID: int = int(os.getenv("INVESTMENT_AGENT_ID", "1"))
 
+    # ── 统一 RAG（策略知识库 / 资讯研报向量化召回） ────────────────────────────
+    # 向量持久化目录（不含经验库，经验库沿用 EXPERIENCE_LIBRARY_DIR）
+    RAG_VECTOR_DIR: str = os.getenv("RAG_VECTOR_DIR", "data/vector_store")
+    RAG_STRATEGY_COLLECTION: str = os.getenv(
+        "RAG_STRATEGY_COLLECTION", "strategy_kb"
+    )
+    RAG_INTEL_COLLECTION: str = os.getenv("RAG_INTEL_COLLECTION", "market_intel")
+    # 资讯/研报索引保留天数（超期条目在索引时清理）
+    RAG_INTEL_RETENTION_DAYS: int = int(
+        os.getenv("RAG_INTEL_RETENTION_DAYS", "180")
+    )
+
 
 settings = Settings()
 
@@ -138,6 +150,22 @@ def get_llm(*, enable_thinking: bool | None = None) -> Any:
             if not api_key:
                 logger.warning("DEEPSEEK_API_KEY 未设置，请在设置中配置后再调用 LLM")
         return _llm
+
+
+def deepseek_model_kwargs() -> dict:
+    """组装 DeepSeek 的 extra_body（thinking / reasoning_effort）。
+
+    供主 Agent 直接构造模型时使用（agents/main_agent.py）。与 get_llm() 的
+    extra_body 同口径，并经 runtime_settings 热刷新：前端「系统设置」改动后
+    新建的 Agent 即生效。
+    """
+    if settings.DEEPSEEK_THINKING:
+        return {
+            "thinking": {"type": "enabled"},
+            "reasoning_effort": settings.DEEPSEEK_REASONING_EFFORT,
+        }
+    return {"thinking": {"type": "disabled"}}
+
 
 # ── Shared DB engine (used by services that need direct SQLAlchemy access) ──
 _engine = create_engine(
