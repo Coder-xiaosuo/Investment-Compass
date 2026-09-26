@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from pathlib import Path
@@ -36,6 +35,7 @@ from typing import Any, Optional
 from shared.config import settings
 
 from models.experience_entry import ExperienceEntry, ExperienceQuery
+from services.rag.vector_store import embed_texts, get_or_create_collection
 
 logger = logging.getLogger(__name__)
 
@@ -47,47 +47,8 @@ _EXPERIENCE_DIR = Path(settings.EXPERIENCE_LIBRARY_DIR)
 _CHROMA_COLLECTION = "experience_library_zh"
 _TIME_DECAY_FACTOR = 0.1  # weight = 1 / (1 + factor * months_elapsed)
 
-# ── 中文语义嵌入（fastembed + bge-small-zh-v1.5，失败时降级为 Chroma 默认） ──
-_EMBEDDING_MODEL = "BAAI/bge-small-zh-v1.5"
-_embedder: Any | None = None
-_embedder_failed = False
-
-
-def _get_embedder() -> Any | None:
-    """Lazy-init 本地中文嵌入器；不可用时返回 ``None``（调用方降级）。"""
-    global _embedder, _embedder_failed
-    if _embedder is not None or _embedder_failed:
-        return _embedder
-    try:
-        # 国内网络：优先走 hf-mirror 且禁用 xet 协议
-        os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
-        os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
-        from fastembed import TextEmbedding  # noqa: PLC0415
-
-        _embedder = TextEmbedding(_EMBEDDING_MODEL)
-        logger.info(
-            "ExperienceLibrary: 已启用本地中文嵌入 %s",
-            _EMBEDDING_MODEL,
-        )
-    except Exception as e:  # noqa: BLE001
-        logger.warning(
-            "ExperienceLibrary: 中文嵌入不可用，降级为 Chroma 默认嵌入: %s",
-            e,
-        )
-        _embedder_failed = True
-    return _embedder
-
-
-def _embed_texts(texts: list[str]) -> list[list[float]] | None:
-    """计算一批文本的向量；嵌入器不可用或计算失败时返回 ``None``。"""
-    embedder = _get_embedder()
-    if embedder is None:
-        return None
-    try:
-        return [[float(x) for x in v] for v in embedder.embed(texts)]
-    except Exception as e:  # noqa: BLE001
-        logger.warning("ExperienceLibrary: 嵌入计算失败，降级: %s", e)
-        return None
+# 中文语义嵌入与 Chroma 客户端由 services.rag.vector_store 统一提供
+# （embed_texts / get_or_create_collection），此处只保留业务侧常量。
 
 
 def _time_decay_weight(timestamp: datetime, now: datetime | None = None) -> float:
@@ -107,7 +68,9 @@ def _time_decay_weight(timestamp: datetime, now: datetime | None = None) -> floa
         ts = ts.replace(tzinfo=timezone.utc)
 
     days_elapsed = (now - ts).days
-    months_elapsed = days_elapsed / 30.0
+    # 时间戳晚于 now（时钟漂移 / 未来时间）时 timedelta.days 向下取整为负数，
+    # 会把权重放大到 >1。按 0 处理，保证返回值恒在 (0, 1]。
+    months_elapsed = max(0.0, days_elapsed / 30.0)
 
     if months_elapsed > settings.EXPERIENCE_MAX_MONTHS:
         return 0.0
@@ -211,7 +174,7 @@ class ChromaExperienceBackend(ExperienceBackend):
         }
 
         kwargs: dict[str, Any] = {}
-        embeddings = _embed_texts([embedding_text])
+        embeddings = embed_texts([embedding_text])
         if embeddings:
             kwargs["embeddings"] = embeddings
 
@@ -248,7 +211,7 @@ class ChromaExperienceBackend(ExperienceBackend):
         # 中文向量嵌入（不可用时回退 query_texts 走 Chroma 默认嵌入）
         query_embeddings = None
         if query.query_text:
-            query_embeddings = _embed_texts([query.query_text])
+            query_embeddings = embed_texts([query.query_text])
 
         def _run_query(*, filtered: bool):
             if query_embeddings:
@@ -327,30 +290,8 @@ class ChromaExperienceBackend(ExperienceBackend):
     # ------------------------------------------------------------------
 
     def _init_collection(self):
-        """Lazy-init Chroma client and collection."""
-        import chromadb
-        from chromadb.config import Settings as ChromaSettings
-
-        client = chromadb.PersistentClient(
-            path=str(_EXPERIENCE_DIR),
-            settings=ChromaSettings(anonymized_telemetry=False),
-        )
-
-        # Get or create collection（新版 chromadb 对不存在 collection 抛 NotFoundError）
-        try:
-            collection = client.get_collection(self._collection_name)
-            logger.info(
-                "ChromaExperienceBackend: using existing collection '%s'",
-                self._collection_name,
-            )
-        except (ValueError, Exception):
-            collection = client.create_collection(self._collection_name)
-            logger.info(
-                "ChromaExperienceBackend: created new collection '%s'",
-                self._collection_name,
-            )
-
-        return collection
+        """Lazy-init Chroma client and collection（委托公共向量层）。"""
+        return get_or_create_collection(self._collection_name, _EXPERIENCE_DIR)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
