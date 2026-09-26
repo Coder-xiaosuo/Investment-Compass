@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from services import cancel_registry
 from services import chat_service as chat_svc
 from services import interpret_service as interpret_svc
 from services import market_data_service as mds
@@ -185,6 +186,10 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         redis_client = None
         logger.warning("Redis unavailable, quote publisher disabled: %s", exc)
+
+    # 软取消标记：Redis 可用时跨进程生效；降级：进程内标记
+    cancel_registry.bind_redis(redis_client)
+    logger.info("Soft-cancel marker backend: %s", cancel_registry.backend_name())
 
     # 进程内数据同步调度器（收盘行情 + 资讯定时同步）
     sync_scheduler.start_scheduler()
@@ -587,6 +592,23 @@ async def stream_message(conv_id: int, req: SendMessageRequest):
             "X-Accel-Buffering": "no",
         },
     )
+
+
+@app.post("/api/chat/conversation/{conv_id}/interrupt")
+async def interrupt_stream(conv_id: int):
+    """软取消该会话正在进行的流。
+
+    与前端 AbortController 的「硬中断」严格区分：
+    - 软取消：不断开连接，只写一个协作标记，Agent 在下一个安全检查点主动退出，
+      已产出内容照常落库，写操作不会被截成两半；旧流随后以 done 正常结束。
+    - 硬中断：前端直接 abort，服务端在 CancelledError 的 finally 中兜底落库。
+    """
+    try:
+        await cancel_registry.mark(conv_id)
+        return BaseResponse(data={"conversation_id": conv_id, "soft_cancelled": True})
+    except Exception as exc:
+        logger.error("interrupt_stream failed: %s", exc)
+        return BaseResponse(code=-1, message=str(exc), data=None)
 
 
 @app.post("/api/chat/{conversation_id}/resume")

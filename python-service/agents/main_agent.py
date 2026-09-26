@@ -10,9 +10,8 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Awaitable, Callable, Dict
 
-import aiomysql
 from deepagents import create_deep_agent
 from deepagents.backends import CompositeBackend, FilesystemBackend
 from deepagents.middleware.filesystem import FilesystemPermission
@@ -20,7 +19,7 @@ from deepagents.middleware.memory import MemoryMiddleware
 from deepagents.middleware.summarization import SummarizationMiddleware
 from langchain.agents.middleware import PIIMiddleware, ModelCallLimitMiddleware, TodoListMiddleware
 from langchain.tools import tool
-from langgraph.checkpoint.mysql.aio import AIOMySQLSaver
+from langgraph.checkpoint.redis.aio import AsyncRedisSaver
 
 from agents.advisory_agent import build_advisory_agent
 from agents.ai_reader_agent import build_ai_reader_subagent
@@ -33,156 +32,36 @@ from shared.deepseek_llm import DeepSeekChatOpenAI
 logger = logging.getLogger(__name__)
 
 # ──────────────────────────────────────────────────────────────────────────────
-# HITL Checkpointer（MySQL 单例）
+# HITL Checkpointer（Redis Stack 单例）
 # ──────────────────────────────────────────────────────────────────────────────
 
 _checkpointer: Any | None = None
-_mysql_pool: Any | None = None
-
-
-def _parse_mysql_url() -> dict:
-    """解析 DATABASE_URL（mysql+pymysql://...）为 aiomysql 连接参数。
-
-    AIOMySQLSaver.from_conn_string 的 parse_conn_string 用 urllib.urlparse 解析，
-    scheme（mysql+pymysql）不影响 host/user/password/db/port 提取，因此 pymysql
-    格式的 URL 可直接复用其解析逻辑。
-    """
-    parsed = AIOMySQLSaver.parse_conn_string(settings.DATABASE_URL)
-    # aiomysql 连接参数（parse_conn_string 已提取 host/user/password/db/port）
-    return {
-        "host": parsed["host"],
-        "user": parsed["user"],
-        "password": parsed["password"] or "",
-        "db": parsed["db"],
-        "port": parsed["port"] or 3306,
-    }
-
-
-async def _bootstrap_mysql9_schema(pool) -> None:
-    """按 langgraph 迁移的最终 schema 预建 checkpoint 表（MySQL 8.0.34+ 兼容）。
-
-    背景：langgraph-checkpoint-mysql 的迁移 SQL 会创建
-    ``checkpoint_ns_hash BINARY(16) AS (UNHEX(MD5(checkpoint_ns))) STORED``
-    生成列；MySQL 8.0.34+（含 9.x）在启用 binlog 时禁止生成列使用 MD5
-    （错误 3763，且 log_bin_trust_function_creators 不影响生成列），
-    导致 saver.setup() 无法跑完迁移。
-    而 langgraph 后续迁移本就会把该列改回普通 BINARY(16)（写入时应用层
-    自算 UNHEX(MD5(...))），因此直接按最终 schema 建表并写入全部迁移
-    版本号（setup 读到最高版本后跳过所有迁移）是等价且安全的。
-    这三张表为 langgraph 专用 checkpoint 表，仅存 HITL 线程状态；
-    迁移失败状态下不会有任何数据，可安全重建。
-    """
-    ddl_statements = [
-        # checkpoint_migrations 版本登记表
-        "CREATE TABLE IF NOT EXISTS checkpoint_migrations (v INTEGER PRIMARY KEY)",
-        # checkpoints（最终 schema：checkpoint_ns_hash 为普通列，ns 扩到 2000）
-        """
-        CREATE TABLE IF NOT EXISTS checkpoints (
-            thread_id VARCHAR(150) NOT NULL,
-            checkpoint_ns VARCHAR(2000) NOT NULL DEFAULT '',
-            checkpoint_id VARCHAR(150) NOT NULL,
-            parent_checkpoint_id VARCHAR(150),
-            type VARCHAR(150),
-            checkpoint JSON NOT NULL,
-            metadata JSON NOT NULL DEFAULT ('{}'),
-            checkpoint_ns_hash BINARY(16),
-            PRIMARY KEY (thread_id, checkpoint_ns_hash, checkpoint_id)
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS checkpoint_blobs (
-            thread_id VARCHAR(150) NOT NULL,
-            checkpoint_ns VARCHAR(2000) NOT NULL DEFAULT '',
-            channel VARCHAR(150) NOT NULL,
-            version VARCHAR(150) NOT NULL,
-            type VARCHAR(150) NOT NULL,
-            `blob` LONGBLOB,
-            checkpoint_ns_hash BINARY(16),
-            PRIMARY KEY (thread_id, checkpoint_ns_hash, channel, version)
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS checkpoint_writes (
-            thread_id VARCHAR(150) NOT NULL,
-            checkpoint_ns VARCHAR(2000) NOT NULL DEFAULT '',
-            checkpoint_id VARCHAR(150) NOT NULL,
-            task_id VARCHAR(150) NOT NULL,
-            idx INTEGER NOT NULL,
-            channel VARCHAR(150) NOT NULL,
-            type VARCHAR(150),
-            `blob` LONGBLOB NOT NULL,
-            checkpoint_ns_hash BINARY(16),
-            task_path VARCHAR(2000) NOT NULL DEFAULT '',
-            PRIMARY KEY (thread_id, checkpoint_ns_hash, checkpoint_id, task_id, idx)
-        )
-        """,
-        # 与 langgraph 迁移一致的回源索引（表已重建，索引必不存在，无需 IF NOT EXISTS）
-        "CREATE INDEX checkpoints_thread_id_idx ON checkpoints (thread_id)",
-        "CREATE INDEX checkpoint_blobs_thread_id_idx ON checkpoint_blobs (thread_id)",
-        "CREATE INDEX checkpoint_writes_thread_id_idx ON checkpoint_writes (thread_id)",
-        "CREATE INDEX checkpoints_checkpoint_id_idx ON checkpoints (checkpoint_id)",
-    ]
-    async with pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            # 中间态（迁移失败残留）表结构不完整，重建为最终形态
-            await cur.execute("DROP TABLE IF EXISTS checkpoint_writes")
-            await cur.execute("DROP TABLE IF EXISTS checkpoint_blobs")
-            await cur.execute("DROP TABLE IF EXISTS checkpoints")
-            for ddl in ddl_statements:
-                await cur.execute(ddl)
-            # 登记全部迁移版本号，使 saver.setup() 读到最高版本后变为 no-op
-            n_migrations = len(AIOMySQLSaver.MIGRATIONS)
-            await cur.executemany(
-                "INSERT IGNORE INTO checkpoint_migrations (v) VALUES (%s)",
-                [(v,) for v in range(n_migrations)],
-            )
 
 
 async def get_checkpointer():
-    """获取 MySQL checkpointer（进程级单例）。
+    """获取 Redis checkpointer（进程级单例）。
 
     供 create_deep_agent 的 interrupt_on 使用：估值完成后中断征求用户决策。
-    - 单例复用：agent 重建不会丢失既有线程状态（状态存于 MySQL checkpoint 表）。
-    - 连接管理：用 aiomysql 连接池（单例持有）传入 AIOMySQLSaver，连接长期存活，
-      不随调用退出关闭（from_conn_string 是 async context manager，退出即关
-      连接，不适合单例长期复用）。
-    - 初始化失败（如 MySQL 不可用）时告警并返回 None，
+    - 单例复用：agent 重建不会丢失既有线程状态（状态存于 Redis）。
+    - 后端要求 Redis Stack：AsyncRedisSaver 经 redisvl 建 RediSearch 索引，
+      并用 RedisJSON 读写 checkpoint；普通 Redis 缺少 JSON.SET / FT.CREATE
+      会在 asetup 阶段失败（见 docker-compose.redis.yml）。
+    - 初始化失败（Redis 不可用 / 缺模块）时告警并返回 None，
       调用方（build_main_agent）据此降级为无中断流程。
     """
-    global _checkpointer, _mysql_pool
+    global _checkpointer
     if _checkpointer is not None:
         return _checkpointer
     try:
-        if _mysql_pool is None:
-            _mysql_pool = await aiomysql.create_pool(
-                **_parse_mysql_url(),
-                autocommit=True,  # 与 from_conn_string 内部行为一致
-                charset="utf8mb4",
-                # aiomysql 0.3.2 已移除 collation 参数；改用 init_command
-                # 显式设置连接 collation，对齐 checkpoint 表避免 1267
-                init_command="SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
-                minsize=1,
-                maxsize=5,
-            )
-        saver = AIOMySQLSaver(conn=_mysql_pool)
-        try:
-            await saver.setup()  # 建 checkpoint 表（checkpoints / checkpoint_writes 等）
-        except Exception as e:
-            # MySQL 8.0.34+/9.x 硬限制：binlog 开启时生成列禁止使用 MD5
-            # （错误 3763），langgraph 迁移无法跑完；按最终 schema 预建表后重试
-            if "3763" not in str(e) and "disallowed function" not in str(e):
-                raise
-            logger.warning(
-                "langgraph 迁移受 MySQL 生成列 MD5 限制（%s），按最终 schema 预建表后重试",
-                e,
-            )
-            await _bootstrap_mysql9_schema(_mysql_pool)
-            await saver.setup()
+        saver = AsyncRedisSaver(redis_url=settings.REDIS_URL)
+        # 建索引：已存在则跳过（redisvl create(overwrite=False) 语义），
+        # 多 worker 并发启动安全
+        await saver.asetup()
         _checkpointer = saver
-        logger.info("MySQL checkpointer 初始化成功: %s", settings.DATABASE_URL)
+        logger.info("Redis checkpointer 初始化成功: %s", settings.REDIS_URL)
     except Exception as e:
         logger.warning(
-            "MySQL checkpointer 初始化失败（HITL 不可用）: %s", e, exc_info=True
+            "Redis checkpointer 初始化失败（HITL 不可用）: %s", e, exc_info=True
         )
         _checkpointer = None
     return _checkpointer
@@ -294,7 +173,7 @@ async def build_main_agent():
     technical_agent = build_technical_analysis_agent()
     advisory_agent = build_advisory_agent()
     subagents = [VALUE_ASSESSMENT_SUBAGENT, technical_agent, WATCHLIST_SUBAGENT, advisory_agent]
-    # HITL checkpointer（单例；MySQL 不可用时为 None，HITL 降级为无中断流程）
+    # HITL checkpointer（单例；Redis 不可用时为 None，HITL 降级为无中断流程）
     checkpointer = await get_checkpointer()
 
     # 文件系统 backend（CompositeBackend 分层）：
@@ -349,7 +228,7 @@ async def build_main_agent():
         ],
         backend=backend,
         permissions=fs_permissions,
-        # 估值完成后中断征求用户决策（approve=进入 / reject=跳过 / respond=直接回复）
+        # 估值完成后中断征求用户决策（approve进入/reject跳过/respond直接回复）
         interrupt_on={
             "confirm_proceed_analysis": {
                 "allowed_decisions": ["approve", "reject", "respond"],
@@ -433,6 +312,7 @@ async def astream_agent_events(
     thread_id: str | None = None,
     resume_decisions: list | None = None,
     user_id: str = "default",
+    should_stop: Callable[[], Awaitable[bool]] | None = None,
 ):
     """结构化事件流（v2 子图流）：主 Agent token + 子 Agent 生命周期 + 阶段事件 + HITL 中断。
 
@@ -460,6 +340,8 @@ async def astream_agent_events(
         「已记住你的风格偏好」提示，并刷新雷达图。
     - ``{"type": "done", "interrupted": bool}``
         本轮事件流结束；``interrupted`` 标记是否因 HITL 中断而结束。
+    - ``{"type": "cancelled"}``
+        软取消命中：本轮在安全检查点主动退出（不抛异常，调用方可正常落库收尾）。
 
     Args:
         user_input: 用户输入（resume 模式下被忽略，不会追加为新消息）。
@@ -469,6 +351,8 @@ async def astream_agent_events(
             ``Command(resume={"decisions": ...})`` 续流同一线程。
         user_id: 用户ID（默认 'default'，单用户场景）。用于风格画像匹配与
         长期记忆持久化；正常对话流忽略此参数。
+        should_stop: 软取消检查函数（协作式取消）。每个事件边界调用一次，
+            返回 True 时本轮主动退出：内部事件流被显式关闭，避免图继续后台推进。
 
     主 Agent 未就绪（缺少 API Key）时仅产出 done 事件。
     """
@@ -489,11 +373,11 @@ async def astream_agent_events(
     if resume_decisions:
         from langgraph.types import Command
         graph_input = Command(resume={"decisions": resume_decisions})
-        # 告警：checkpointer 不可用（MySQL 挂）时线程状态未持久化，resume 必然失败
+        # 告警：checkpointer 不可用时线程状态未持久化，resume 必然失败
         try:
             if await get_checkpointer() is None:
                 logger.warning(
-                    "astream_agent_events: resume 请求但 MySQL checkpointer 不可用，"
+                    "astream_agent_events: resume 请求但 Redis checkpointer 不可用，"
                     "该线程无法真正续流（thread_id=%s）",
                     thread_id,
                 )
@@ -571,14 +455,24 @@ async def astream_agent_events(
     latest_usage: dict[str, Any] = {}
     last_usage_yielded: int = -1
 
+    soft_cancelled = False
     try:
-        async for chunk in agent.astream(
+        # 事件流句柄显式持有：软取消退出时 aclose，避免图在后台继续推进
+        event_stream = agent.astream(
             graph_input,
             config=config,
             stream_mode=["messages", "custom", "updates"],
             subgraphs=True,
             version="v2",
-        ):
+        )
+        async for chunk in event_stream:
+            # 安全检查点：每个事件边界检查一次软取消标记（工具内部的长任务
+            # 无法中途打断，退化为在下一个边界退出，属预期粒度）
+            if should_stop is not None and await should_stop():
+                soft_cancelled = True
+                yield {"type": "cancelled"}
+                break
+
             ctype = chunk.get("type")
             ns = chunk.get("ns")
             data = chunk.get("data")
@@ -740,6 +634,14 @@ async def astream_agent_events(
                 continue
     except Exception as e:
         logger.error("Main agent event stream failed: %s", e, exc_info=True)
+    finally:
+        if soft_cancelled:
+            # 停止消费后显式关闭内部事件流，触发 langgraph 侧的取消，
+            # 否则图可能在后台继续执行（例如启动下一个子 Agent）
+            try:
+                await event_stream.aclose()
+            except Exception:
+                logger.warning("关闭主 Agent 事件流失败", exc_info=True)
 
     # 结束事件：标记本轮是否因 HITL 中断而结束
     yield {"type": "done", "interrupted": interrupted}

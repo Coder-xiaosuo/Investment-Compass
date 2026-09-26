@@ -1,5 +1,6 @@
 import { createParser, type EventSourceMessage } from 'eventsource-parser'
 import type {
+  ChatMessage,
   Citation,
   Decision,
   HITLRequest,
@@ -16,7 +17,9 @@ import type {
  * - 每个 conversationId 独立持有一份展示状态与一个 AbortController；
  * - chunk 实时写入对应会话的状态，切换会话后切回即可读到累积结果；
  * - 组件卸载 / 切换会话都不中止流，只有显式中止才 abort：
- *   cancel()  用户「停止生成」→ 中止但保留已产出内容（outcome='aborted'）
+ *   interrupt() 用户在有流时发新消息 → 先发「软取消」信号，旧流在安全点主动退出，
+ *              旧流结束后自动发起新请求（不暴力 abort，避免打断执行到一半的工具调用）
+ *   cancel()  用户「停止生成」→ 硬中断：立即 abort 但保留已产出内容（outcome='aborted'）
  *   discard() 会话被删除       → 中止并清空展示状态
  */
 
@@ -43,6 +46,7 @@ export const EMPTY_STREAM_DISPLAY: StreamDisplay = {
   isResuming: false,
   contextTokens: null,
   outcome: null,
+  isInterrupting: false,
 }
 
 interface StreamEvent {
@@ -58,10 +62,15 @@ interface StreamRuntime {
   sawDone: boolean
   /** 是否由用户主动点击「停止生成」触发的中止 */
   cancelledByUser: boolean
+  /** 本轮流是否命中过服务端软取消（用户发新消息触发的协作式退出） */
+  sawSoftCancel: boolean
   /** 本轮开始时间（等待时长提示用，不入快照避免高频 commit） */
   startedAt: number
   /** 最近一次收到业务事件的时间（同上） */
   lastEventAt: number
+  /** 本轮流收尾（end/discard）时兑现：供 interrupt() 编排「旧流结束 → 自动重发」 */
+  settled: Promise<void>
+  resolveSettled: () => void
 }
 
 /** 流式时序元信息（供等待提示条使用；与展示快照分离，避免每秒触发 commit） */
@@ -111,7 +120,8 @@ class ConversationStreamStore {
   }
 
   /**
-   * 用户主动「停止生成」：中止该会话的流，但**保留已产出内容**。
+   * 硬中断（用户点击「停止生成」，或在软取消等待期间再次点击）：
+   * 立即 abort，不等安全边界，**保留已产出内容**。
    *
    * 不清理展示状态 —— 中止会经 start()/resume() 的收尾逻辑写入
    * outcome='aborted'，内容留在 text 中等待调用方延迟对账。
@@ -123,9 +133,93 @@ class ConversationStreamStore {
     runtime.controller.abort()
   }
 
+  /**
+   * 用户在有流进行时发来新消息：先「软取消」旧流，旧流结束后自动发起新请求。
+   *
+   * 与硬中断的区别：软取消只向服务端写一个协作标记，旧流在下一个安全检查点
+   * 主动退出并正常落库，避免把执行到一半的工具调用/写操作截断。
+   *
+   * 等待期间用户可再次点击「停止生成」触发硬中断（cancel），此时不再等安全边界，
+   * 但用户已表达的新消息仍会在旧流收尾后发出。
+   *
+   * @param options.onRoundInterrupted 旧轮被用户打断且有产出时的交接回调：
+   *   用于把这段内容落为一条消息（带 user_interrupted 标记）插入消息列表 ——
+   *   新一轮 begin() 会重置展示状态，不交接则这段内容会从界面消失。
+   * @returns 新请求的收尾结果：是否以 HITL 中断结束（与 start() 语义一致）
+   */
+  async interrupt(
+    conversationId: string,
+    content: string,
+    options?: { onRoundInterrupted?: (message: ChatMessage) => void },
+  ): Promise<boolean> {
+    const runtime = this.runtimes.get(conversationId)
+    // 无进行中的流：不存在竞态，直接发起新请求
+    if (!runtime) return this.start(conversationId, content)
+
+    // 1. 进入等待态：输入框据此禁用并提示「正在打断」，新请求暂不发出
+    const prev = this.states.get(conversationId) ?? EMPTY_STREAM_DISPLAY
+    this.commit(conversationId, { ...prev, isInterrupting: true })
+
+    // 2. 软取消信号：旧流在下一个安全检查点主动退出
+    const delivered = await this.notifySoftCancel(conversationId)
+    if (!delivered) {
+      // 信号未送达（网络/服务端异常）→ 不做无谓等待，直接硬中断兜底
+      runtime.cancelledByUser = true
+      runtime.controller.abort()
+    }
+
+    // 3. 等旧流收尾（软取消命中则正常结束；兜底硬中断则为 abort 后的收尾）
+    await runtime.settled
+
+    // 3.5 交接被打断的旧轮内容（详见参数说明），随后新一轮会重置展示状态
+    this.handOffInterruptedRound(conversationId, runtime, options?.onRoundInterrupted)
+
+    // 4. 旧流结束后自动发起新请求
+    return this.start(conversationId, content)
+  }
+
+  /**
+   * 交接被打断的旧轮
+   */
+  private handOffInterruptedRound(
+    conversationId: string,
+    runtime: StreamRuntime,
+    onRoundInterrupted?: (message: ChatMessage) => void,
+  ): void {
+    if (!onRoundInterrupted) return
+    if (!runtime.sawSoftCancel && !runtime.cancelledByUser) return
+    const state = this.states.get(conversationId)
+    if (!state?.text) return
+    onRoundInterrupted({
+      id: `local-interrupted-${Date.now()}`,
+      conversationId,
+      role: 'assistant',
+      content: state.text,
+      content_type: 'text',
+      sequence: 0,
+      card_data: { user_interrupted: true },
+      createdAt: new Date().toISOString(),
+    })
+  }
+
+  /** 发送软取消信号，返回是否送达服务端 */
+  private async notifySoftCancel(conversationId: string): Promise<boolean> {
+    try {
+      const res = await fetch(`/api/chat/conversation/${conversationId}/interrupt`, {
+        method: 'POST',
+      })
+      return res.ok
+    } catch {
+      return false
+    }
+  }
+
   /** 彻底丢弃该会话的流（中止 + 清空展示状态）：会话被删除时使用 */
   discard(conversationId: string): void {
-    this.runtimes.get(conversationId)?.controller.abort()
+    const runtime = this.runtimes.get(conversationId)
+    runtime?.controller.abort()
+    // 兑现等待句柄：避免 interrupt() 的编排在会话被删除后永久挂起
+    runtime?.resolveSettled()
     this.runtimes.delete(conversationId)
     this.clear(conversationId)
   }
@@ -136,6 +230,14 @@ class ConversationStreamStore {
     if (!runtime) return null
     return { startedAt: runtime.startedAt, lastEventAt: runtime.lastEventAt }
   }
+
+  /**
+   * 该会话当前是否有流在运行。
+   *
+   * 供延迟对账判断：若新一轮已接管该会话（用户打断后自动重发），
+   * 上一轮的对账不得清理展示状态，否则会清掉正在进行的流。
+   */
+  hasActiveStream = (conversationId: string): boolean => this.runtimes.has(conversationId)
 
   /** 清空该会话的流式展示状态（消息已落库并刷新后调用） */
   clear(conversationId: string): void {
@@ -217,15 +319,25 @@ class ConversationStreamStore {
   /** 开启一轮流：接管该会话的运行时（旧流被替换），并初始化展示状态 */
   private begin(conversationId: string, mode: 'start' | 'resume'): StreamRuntime {
     // 同一会话重入 → 替换旧流（不影响其它会话）
-    this.runtimes.get(conversationId)?.controller.abort()
+    const replaced = this.runtimes.get(conversationId)
+    replaced?.controller.abort()
+    // 兑现被替换流的等待句柄，避免 interrupt() 的编排悬空
+    replaced?.resolveSettled()
     const now = Date.now()
+    let resolveSettled: () => void = () => {}
+    const settled = new Promise<void>((resolve) => {
+      resolveSettled = resolve
+    })
     const runtime: StreamRuntime = {
       controller: new AbortController(),
       sawInterrupt: false,
       sawDone: false,
       cancelledByUser: false,
+      sawSoftCancel: false,
       startedAt: now,
       lastEventAt: now,
+      settled,
+      resolveSettled,
     }
     this.runtimes.set(conversationId, runtime)
 
@@ -245,24 +357,35 @@ class ConversationStreamStore {
    * 收尾：仅当仍是当前运行时（未被新流替换）时复位标记并写入 outcome。
    *
    * outcome 判定（顺序即优先级）：
-   *   cancelledByUser → aborted（用户停止，内容保留）
+   *   cancelledByUser / sawSoftCancel → aborted（用户停止或软取消，内容保留）
    *   sawInterrupt    → interrupted（HITL 等待决策）
    *   sawDone         → completed（后端明确结束）
    *   否则            → failed（未收到 done 即断开，内容保留）
    */
   private end(conversationId: string, runtime: StreamRuntime): void {
+    // 先兑现等待句柄：无论本轮是否已被新流替换，这一轮确实结束了，
+    // interrupt() 的「旧流结束 → 自动重发」编排据此继续
+    runtime.resolveSettled()
     if (this.runtimes.get(conversationId) !== runtime) return
     this.runtimes.delete(conversationId)
     const prev = this.states.get(conversationId)
     if (!prev) return
-    const outcome: StreamOutcome = runtime.cancelledByUser
-      ? 'aborted'
-      : runtime.sawInterrupt
-        ? 'interrupted'
-        : runtime.sawDone
-          ? 'completed'
-          : 'failed'
-    this.commit(conversationId, { ...prev, isStreaming: false, isResuming: false, outcome })
+    const outcome: StreamOutcome =
+      runtime.cancelledByUser || runtime.sawSoftCancel
+        ? 'aborted'
+        : runtime.sawInterrupt
+          ? 'interrupted'
+          : runtime.sawDone
+            ? 'completed'
+            : 'failed'
+    // 等待态随本轮收尾一并复位（旧流已退出，等待中的新请求随后接管）
+    this.commit(conversationId, {
+      ...prev,
+      isStreaming: false,
+      isResuming: false,
+      isInterrupting: false,
+      outcome,
+    })
   }
 
   /** 消费一个 SSE Response：交给 eventsource-parser 分帧后逐事件应用 */
@@ -300,6 +423,13 @@ class ConversationStreamStore {
     // 否则流被截断（网络中断、服务端异常），标记为 failed。
     if (event.done === true) {
       runtime.sawDone = true
+      return
+    }
+
+    // 软取消命中（用户发新消息触发）：旧流在安全检查点主动退出，
+    // 内容保留在 text 中，随后由 {"done": true} 正常收尾
+    if (event.type === 'cancelled') {
+      runtime.sawSoftCancel = true
       return
     }
 

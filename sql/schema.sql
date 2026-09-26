@@ -6,9 +6,10 @@
 --
 -- 用途：审计 / 环境重建 / 与迁移链交叉核对。
 --
--- 收敛结果：42 张表 -> 21 张
+-- 收敛结果：42 张表 -> 17 张
 --   移除 21 张 FinAgentOS 模拟交易平台遗留表（见 V016 迁移）。
---   保留 16 张业务表 + 4 张 LangGraph checkpoint 表 + 1 张 data_quality_issue。
+--   移除 4 张 LangGraph checkpoint 表（HITL 线程状态迁至 Redis，见 V018 迁移）。
+--   保留 16 张业务表 + 1 张 data_quality_issue。
 --
 -- 数据来源：由 FinAgentOS 项目备份迁移而来（docker-compose.mysql.yml 挂载
 --          docker-entrypoint-initdb.d 导入），其中携带了大量与投资罗盘无关的
@@ -46,48 +47,6 @@ CREATE TABLE `agent_threads` (
   UNIQUE KEY `thread_id` (`thread_id`),
   KEY `idx_conv` (`conversation_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Agent 线程表（HITL 线程状态）';
-CREATE TABLE `checkpoint_blobs` (
-  `thread_id` varchar(150) NOT NULL,
-  `checkpoint_ns` varchar(2000) NOT NULL DEFAULT '',
-  `channel` varchar(150) NOT NULL,
-  `version` varchar(150) NOT NULL,
-  `type` varchar(150) NOT NULL,
-  `blob` longblob,
-  `checkpoint_ns_hash` binary(16) NOT NULL,
-  PRIMARY KEY (`thread_id`,`checkpoint_ns_hash`,`channel`,`version`),
-  KEY `checkpoint_blobs_thread_id_idx` (`thread_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-CREATE TABLE `checkpoint_migrations` (
-  `v` int NOT NULL,
-  PRIMARY KEY (`v`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-CREATE TABLE `checkpoint_writes` (
-  `thread_id` varchar(150) NOT NULL,
-  `checkpoint_ns` varchar(2000) NOT NULL DEFAULT '',
-  `checkpoint_id` varchar(150) NOT NULL,
-  `task_id` varchar(150) NOT NULL,
-  `idx` int NOT NULL,
-  `channel` varchar(150) NOT NULL,
-  `type` varchar(150) DEFAULT NULL,
-  `blob` longblob NOT NULL,
-  `checkpoint_ns_hash` binary(16) NOT NULL,
-  `task_path` varchar(2000) NOT NULL DEFAULT '',
-  PRIMARY KEY (`thread_id`,`checkpoint_ns_hash`,`checkpoint_id`,`task_id`,`idx`),
-  KEY `checkpoint_writes_thread_id_idx` (`thread_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-CREATE TABLE `checkpoints` (
-  `thread_id` varchar(150) NOT NULL,
-  `checkpoint_ns` varchar(2000) NOT NULL DEFAULT '',
-  `checkpoint_id` varchar(150) NOT NULL,
-  `parent_checkpoint_id` varchar(150) DEFAULT NULL,
-  `type` varchar(150) DEFAULT NULL,
-  `checkpoint` json NOT NULL,
-  `metadata` json NOT NULL DEFAULT (_utf8mb4'{}'),
-  `checkpoint_ns_hash` binary(16) NOT NULL,
-  PRIMARY KEY (`thread_id`,`checkpoint_ns_hash`,`checkpoint_id`),
-  KEY `checkpoints_thread_id_idx` (`thread_id`),
-  KEY `checkpoints_checkpoint_id_idx` (`checkpoint_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 CREATE TABLE `conversation` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `title` varchar(128) DEFAULT '' COMMENT '会话标题（首条消息摘要或用户自定义）',
