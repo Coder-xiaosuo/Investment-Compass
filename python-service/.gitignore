@@ -22,9 +22,10 @@ config/settings.json
 # 用户偏好记忆（含个人隐私），仅存本地
 memories/
 
-# 回测产物 / 向量经验库（运行时数据）
+# 回测产物 / 向量库（运行时数据）
 out/
 data/experience_library/
+data/vector_store/
 
 # Python 构建产物
 __pycache__/

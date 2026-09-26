@@ -1,3 +1,4 @@
+langchain
 # FinAgentOS — Python Service
 fastapi>=0.115.0
 uvicorn[standard]
@@ -13,9 +14,9 @@ openai>=1.0
 langgraph>=0.3.0
 langchain-openai>=0.3.0
 chromadb>=0.6.0
+# 本地中文语义嵌入（BAAI/bge-small-zh-v1.5）；缺失时向量检索降级为 Chroma 默认嵌入
+fastembed>=0.4.0
 deepagents>=0.7.4
-langgraph-checkpoint-mysql>=3.0.0
-aiomysql>=0.2.0
 langgraph-checkpoint-redis>=0.5.1
 redis>=7.0
 apscheduler>=3.10
