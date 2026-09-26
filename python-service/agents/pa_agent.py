@@ -8,10 +8,8 @@ from __future__ import annotations
 
 import json
 import logging
-import math
 from pathlib import Path
 from typing import Optional
-
 from langchain.tools import tool
 from pydantic import BaseModel, Field
 
@@ -30,7 +28,7 @@ class TechnicalResult(BaseModel):
 
     stock_code: str = Field(description="股票代码")
     stock_name: str = Field(description="股票名称")
-    direction: str = Field(description="方向判断：buy / sell / neutral")
+    direction: str = Field(description="方向判断：buy/sell/neutral")
     confidence: float = Field(ge=0.0, le=1.0, description="置信度 0-1")
     market_cycle: str = Field(default="", description="市场周期位置")
     patterns: list[str] = Field(default_factory=list, description="检测到的技术形态")
@@ -40,8 +38,8 @@ class TechnicalResult(BaseModel):
     summary: str = Field(description="分析摘要")
     risk_warnings: list[str] = Field(default_factory=list, description="风险提示")
     trace_id: str = Field(default="", description="决策幂等键（parse_node 生成，贯穿决策卡片/报告文件）")
-    # ── 两阶段编排新增字段（Stage2 交易决策） ──
-    order_type: str = "不下单"  # 下单方式：限价单 / 突破单 / 市价单 / 不下单
+    # ── 交易决策编排新增字段 ──
+    order_type: str = "不下单"  # 下单方式：限价单/突破单/市价单/不下单
     entry_price: Optional[float] = None  # 计划入场价（不下单时为 None）
     invalidation_price: Optional[float] = None  # 结构失效位（做多跌破 / 做空升破）
     estimated_win_rate: Optional[int] = Field(None, ge=0, le=100)  # 预估胜率 0-100
@@ -314,8 +312,7 @@ def _compute_market_data(bars: list) -> dict:
 def get_pa_data(stock_identifier: str, timeframe: str = "1d") -> str:
     """获取 A 股技术分析原始数据：K 线统计 + 算法技术指标。
 
-    纯算法计算，无 AI/LLM 调用（约 0.1s 内返回）。返回结构化 JSON 供
-    PA 子 Agent 结合策略技能包做交易判断。
+    返回结构化 JSON 供PA 子 Agent 结合策略技能包做交易判断。
 
     参数:
         stock_identifier: 股票代码（6位数字）或名称。
