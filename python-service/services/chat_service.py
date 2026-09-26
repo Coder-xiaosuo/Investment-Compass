@@ -4,12 +4,14 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 from datetime import datetime
 from typing import Any, AsyncGenerator, Optional
 
 from sqlalchemy import text
 from langchain_core.messages.utils import count_tokens_approximately
 
+from services import cancel_registry
 from shared.config import settings
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
@@ -505,12 +507,17 @@ def _persist_assistant_turn(
     card_subagent: str,
     context_tokens: Optional[int],
     usage_total_tokens: Optional[int],
+    user_interrupted: bool = False,
 ) -> bool:
     """落库助手消息（含复合卡片）、上下文占用与决策报告。
 
     **全同步实现**：正常结束与「客户端断连」两条路径共用。断连路径在
     asyncio.CancelledError 的 finally 中调用，此时任何 await 都会被立即取消，
     因此这里刻意不使用 await。
+
+    Args:
+        user_interrupted: 本轮是否由用户主动打断（软取消）。True 时在 card_data
+            上打标，前端据此在该条消息气泡下渲染「用户手动中断」提醒。
 
     Returns:
         是否实际落库了助手消息（无内容时返回 False，调用方据此决定后续动作）。
@@ -527,6 +534,8 @@ def _persist_assistant_turn(
         card_data = _build_composite_card_data(
             subagent_result, trace, card_symbol, card_stock_name, card_subagent
         )
+    if user_interrupted:
+        card_data = {**(card_data or {}), "user_interrupted": True}
 
     _insert_message(
         conv_id,
@@ -658,6 +667,9 @@ async def stream_agent_reply(
           （HITL 中断：估值完成征求用户决策，前端据此展示决策 UI 并调
            /resume 续流）
         - {"done": true}（结束）
+        - {"type": "cancelled"}
+          软取消命中：用户在本轮进行中发来新消息，本轮在安全检查点主动退出。
+          与硬中断（abort）不同，这里已产出内容照常落库、连接不断，随后正常发 done。
 
     流结束时按中断状态落库线程状态：interrupt → INTERRUPTED，否则 DONE。
     结束前会把 analysis_trace 与结构化结果合并进 assistant 消息的
@@ -670,6 +682,10 @@ async def stream_agent_reply(
     # 1. 存用户消息 + 自动更新标题
     _insert_message(conv_id, "user", user_content, token_count=_estimate_tokens(user_content))
     _auto_update_title(conv_id, user_content)
+
+    # 软取消基准：只有晚于本轮开始的标记才算本轮的有效取消信号，
+    # 避免上一轮迟到的标记误杀刚启动的新一轮
+    round_started_at_ms = time.time() * 1000
 
     # 2. 获取会话绑定的 Agent 线程（方案 C：会话与线程一对一，
     #    跨轮对话在同一线程上延续，HITL resume 依赖该 thread_id）
@@ -694,6 +710,8 @@ async def stream_agent_reply(
     card_stock_name = ""
     card_subagent = ""
     interrupted = False
+    # 软取消命中标记：用户在本轮进行中发来新消息 → 检查点主动退出（非 abort）
+    soft_cancelled = False
     # 真实上下文用量：来自 agent 层 usage 事件（最后一次模型调用），
     # 用于落库 conversation.context_tokens 与 assistant 消息 token_count。
     context_tokens: Optional[int] = None
@@ -702,7 +720,20 @@ async def stream_agent_reply(
     cancelled = False
 
     try:
-        async for event in astream_agent_events(user_content, thread_id=thread_id):
+        async for event in astream_agent_events(
+            user_content,
+            thread_id=thread_id,
+            should_stop=lambda: cancel_registry.is_cancelled(conv_id, round_started_at_ms),
+        ):
+            if event.get("type") == "cancelled":
+                # 软取消命中：先把待发 token 冲刷掉（内容不丢），再透传取消事件。
+                # 不抛异常 → 后续正常走落库与 done，连接保持可用。
+                soft_cancelled = True
+                if buffer:
+                    yield _sse_event({"type": "chunk", "chunk": "".join(buffer)})
+                    buffer.clear()
+                yield _sse_event(event)
+                continue
             if event.get("type") == "token":
                 full_parts.append(event["content"])
                 buffer.append(event["content"])
@@ -771,6 +802,8 @@ async def stream_agent_reply(
     finally:
         if cancelled:
             # 断连分支内任何 await 都会被立即取消，因此此处只用全同步实现。
+            # user_interrupted 走同步标记读取：硬中断若由「打断等待期间再次点击」
+            # 触发，此前已写入软取消标记，据此仍能在消息上打上「用户手动中断」。
             try:
                 if _persist_assistant_turn(
                     conv_id,
@@ -782,6 +815,9 @@ async def stream_agent_reply(
                     card_subagent,
                     context_tokens,
                     usage_total_tokens,
+                    user_interrupted=cancel_registry.is_cancelled_local(
+                        conv_id, round_started_at_ms
+                    ),
                 ):
                     logger.info("断连落库完成：conversation_id=%s", conv_id)
             except Exception as e:
@@ -799,6 +835,7 @@ async def stream_agent_reply(
         card_subagent,
         context_tokens,
         usage_total_tokens,
+        user_interrupted=soft_cancelled,
     ):
         # 4.6 经验写回路异步触发（复盘→提升，失败不影响响应）
         try:
@@ -807,11 +844,20 @@ async def stream_agent_reply(
         except Exception:
             logger.warning("experience loop trigger failed", exc_info=True)
 
-    # 4. 线程状态落库：中断 → INTERRUPTED（可 resume），否则 → DONE
+    # 3.5 软取消收尾：清除标记（避免影响下一轮；标记带时间戳，残留也无害，
+    #     这里清得更干净），线程按「本轮未跑完」标记为 CANCELLED
+    if soft_cancelled:
+        await cancel_registry.clear(conv_id)
+        logger.info("软取消收尾：conversation_id=%s thread_id=%s", conv_id, thread_id)
+
+    # 4. 线程状态落库：中断 → INTERRUPTED（可 resume），软取消/断连 → CANCELLED，
+    #    否则 → DONE
     if thread_id:
         try:
             if interrupted:
                 thread_service.mark_interrupted(thread_id)
+            elif soft_cancelled:
+                thread_service.mark_cancelled(thread_id)
             else:
                 thread_service.mark_done(thread_id)
         except Exception as e:
@@ -858,6 +904,9 @@ async def resume_agent_reply(
     # 2. resume 续流（事件格式与 stream_agent_reply 一致）
     from agents.main_agent import astream_agent_events
 
+    # 软取消基准（同 stream 路径）：只有晚于本轮开始的标记才生效
+    round_started_at_ms = time.time() * 1000
+
     buffer: list[str] = []
     full_parts: list[str] = []
     trace: list[dict] = []
@@ -866,6 +915,8 @@ async def resume_agent_reply(
     card_stock_name = ""
     card_subagent = ""
     interrupted = False
+    # 软取消命中标记：用户在续流进行中发来新消息 → 检查点主动退出（非 abort）
+    soft_cancelled = False
     # 真实上下文用量（同 stream 路径）
     context_tokens: Optional[int] = None
     usage_total_tokens: Optional[int] = None
@@ -874,8 +925,19 @@ async def resume_agent_reply(
 
     try:
         async for event in astream_agent_events(
-            "", thread_id=thread_id, resume_decisions=decisions
+            "",
+            thread_id=thread_id,
+            resume_decisions=decisions,
+            should_stop=lambda: cancel_registry.is_cancelled(conversation_id, round_started_at_ms),
         ):
+            if event.get("type") == "cancelled":
+                # 软取消命中：冲刷待发 token 后透传，随后正常落库收尾
+                soft_cancelled = True
+                if buffer:
+                    yield _sse_event({"type": "chunk", "chunk": "".join(buffer)})
+                    buffer.clear()
+                yield _sse_event(event)
+                continue
             if event.get("type") == "token":
                 full_parts.append(event["content"])
                 buffer.append(event["content"])
@@ -950,6 +1012,9 @@ async def resume_agent_reply(
                         card_subagent,
                         context_tokens,
                         usage_total_tokens,
+                        user_interrupted=cancel_registry.is_cancelled_local(
+                            conversation_id, round_started_at_ms
+                        ),
                     ):
                         logger.info("断连落库完成（resume）：conversation_id=%s", conversation_id)
                 except Exception as e:
@@ -969,6 +1034,7 @@ async def resume_agent_reply(
         card_subagent,
         context_tokens,
         usage_total_tokens,
+        user_interrupted=soft_cancelled,
     ):
         # 经验写回路异步触发（复盘→提升，失败不影响响应）
         try:
@@ -977,10 +1043,16 @@ async def resume_agent_reply(
         except Exception:
             logger.warning("experience loop trigger failed", exc_info=True)
 
-    # 3. 线程状态落库：resume 后再次中断 → 保持 INTERRUPTED；否则 → DONE
+    # 3. 线程状态落库：resume 后再次中断 → 保持 INTERRUPTED；软取消 → CANCELLED；
+    #    否则 → DONE
+    if soft_cancelled:
+        await cancel_registry.clear(conversation_id)
+        logger.info("软取消收尾（resume）：conversation_id=%s thread_id=%s", conversation_id, thread_id)
     try:
         if interrupted:
             thread_service.mark_interrupted(thread_id)
+        elif soft_cancelled:
+            thread_service.mark_cancelled(thread_id)
         else:
             thread_service.mark_done(thread_id)
     except Exception as e:
