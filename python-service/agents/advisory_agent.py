@@ -52,14 +52,9 @@ class Citation(BaseModel):
 
 class AdvisoryResult(BaseModel):
     """资讯问答的结构化输出 — 子 Agent 返回给主 Agent 的 Schema。"""
-
     answer: str = Field(description="面向用户的资讯回答（含要点摘要与引用编号）")
-    citations: list[Citation] = Field(
-        default_factory=list, description="回答引用的来源列表（与 answer 中的编号对应）"
-    )
-    confidence: float = Field(
-        ge=0.0, le=1.0, description="置信度 0-1：信息充足且一致→高；缺失或冲突→低"
-    )
+    citations: list[Citation] = Field(default_factory=list, description="回答引用的来源列表（与 answer 中的编号对应）")
+    confidence: float = Field(ge=0.0, le=1.0, description="置信度 0-1：信息充足且一致→高；缺失或冲突→低")
 
 
 # ── State ────────────────────────────────────────────────────────────────────
